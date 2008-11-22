@@ -1,0 +1,21 @@
+#####
+## WrapSix readme
+####
+# Author: Michal Zima, 2008
+# E-mail: xhire@tuxportal.cz
+#####
+
+== About ==
+WrapSix is a revolutionary piece of software that make possible to reach IPv4-only servers from IPv6-only networks. It stands as a wrapper of faked IPv6 addresses to real IPv4 addresses.
+
+== Requirements ==
+WrapSix is very simple to use. You only need:
+* GNU/Linux system
+* Ruby (I've tested version 1.8.7)
+
+== Configuration ==
+
+== Running ==
+
+== Getting help ==
+You can visit official WrapSix IRC channel #wrapsix on server irc.tuxportal.cz. Thank you for feedback.

@@ -1,0 +1,34 @@
+#####
+## WrapSix ToDo 
+#####
+
+== First stage ==
+* basic skeleton
+* configuration
+* purely mediate function of DNS resolver -> implement it's protocol
+( write some test scripts )
+
+== Second stage ==
+- stay as a DNS wrapping resolver - create faked AAAA entries instead of A
+    (only if AAAA is required)
+- running with arguments
+
+== Third stage ==
+- listen on all ports & all set IPv6 addresses
+- wrap all connections to IPv4-in-IPv6 addresses
+
+== ... ==
+
+== Final stage ==
+- choose a licence ;c)
+- test a lot
+- revise documentation
+- create a package with some simple installator
+
+== Optional stage ==
+- implement cache for DNS
+- create man pages
+- create some home web page (may be a wiki?)
+
+== PostFinal stage ==
+- rewrite to C :c)
