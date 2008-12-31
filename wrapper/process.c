@@ -3,38 +3,38 @@
 
 void process_packet6(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
-	static int count = 1;			/* packet counter */
+	const struct s_ethernet *ethernet;	/* the ethernet header */
+	const struct s_ip6 *ip;			/* the IP header */
+	const unsigned char *payload;		/* packet payload */
 
-	/* declare pointers to packet headers */
-	const struct s_ethernet *ethernet;	/* The ethernet header [1] */
-	const struct s_ip6 *ip;			/* The IP header */
-	const unsigned char *payload;			/* Packet payload */
-
-	printf("\nPacket number %d:\n", count);
-	count++;
+	struct in6_addr ip6addr_wrapsix;
+	struct in6_addr ip6addr_ndp_multicast;
 
 	/* define ethernet header */
 	ethernet = (struct s_ethernet*) (packet);
 
-	/* define/compute ip header offset */
+	/* define/compute IP header offset */
 	ip = (struct s_ip6*) (packet + SIZE_ETHERNET);
 
+	/* define/compute IP payload offset */
 	payload = packet + SIZE_ETHERNET + SIZE_IP6;
 
-	/* print source and destination IP addresses */
-	char ip6addr[INET6_ADDRSTRLEN];
-	inet_ntop(AF_INET6, &ip->ip_src, ip6addr, sizeof(ip6addr));
-	printf("       From: %s\n", ip6addr);
-	/* keep the following line as the last one inet_ntop! */
-	inet_ntop(AF_INET6, &ip->ip_dest, ip6addr, sizeof(ip6addr));
-	printf("         To: %s\n", ip6addr);
-
-	/* check if this packet is ours - hardcoded for now */
-	char wsaddr[INET6_ADDRSTRLEN] = "fc00:1::4d4b:4c03";
-	if (strcmp(wsaddr, ip6addr) != 0) {
-		printf("==> This packet is not ours! <==\n");
+	/* check if this packet is ours - partially hardcoded for now */
+	inet_pton(AF_INET6, "fc00:1::", &ip6addr_wrapsix);
+	inet_pton(AF_INET6, "ff02::1:ff00:0", &ip6addr_ndp_multicast);
+	/* check for our prefix || NDP */
+	if (memcmp(&ip6addr_wrapsix, &ip->ip_dest, 12) != 0
+	 && memcmp(&ip6addr_ndp_multicast, &ip->ip_dest, 13) != 0) {
+		printf("==> This packet is not ours! And it's not NDP! <==\n");
 		return;
 	}
+
+	/* DEBUG: print source and destination IP addresses */
+	char ip6addr[INET6_ADDRSTRLEN];
+	inet_ntop(AF_INET6, &ip->ip_src, ip6addr, sizeof(ip6addr));
+	printf("\n       From: %s\n", ip6addr);
+	inet_ntop(AF_INET6, &ip->ip_dest, ip6addr, sizeof(ip6addr));
+	printf("         To: %s\n", ip6addr);
 
 	/* determine protocol */
 	switch (ip->next_header) {
@@ -56,83 +56,82 @@ void process_packet6(u_char *args, const struct pcap_pkthdr *header, const u_cha
 	return;
 }
 
-void process_icmp6(struct s_ip6 *ip, const unsigned char *payload)
+void process_icmp6(const struct s_ip6 *ip, const unsigned char *payload)
 {
 	struct s_icmp *icmp;
 	struct in_addr ip4_addr;
 
-	unsigned char *icmp_data;
+	const unsigned char *icmp_data;
 	unsigned char *icmp_packet;
 
 	int packet_size;
 
-	/* extract the ICMP header */
+	/* define ICMP header */
 	icmp = (struct s_icmp *) (payload);
-	icmp_data = (unsigned char *) (payload + sizeof(icmp));
+	/* define/compute ICMP data offset */
+	icmp_data = (unsigned char *) (payload + sizeof(struct s_icmp));
+	/* the checksum has to be zeros before we have data for its computation */
+	icmp->checksum = 0;
+
+	/* create one big ICMP packet */
+	packet_size = htons(ip->len);
+	icmp_packet = (unsigned char *) malloc(packet_size);
+
+	if (icmp_packet == NULL) {
+		fprintf(stderr, "Fatal error! Lack of free memory!\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/* decide what type of ICMP we have */
 	switch (icmp->type) {
 		/* NDP */
 		case ICMP6_NDP_NS:
 			printf("       ICMP: [NDP] Neighbor Solicitation\n");
-			break;
-		case ICMP6_NDP_NA:
-			printf("       ICMP: [NDP] Neighbor Advertisement\n");
-			break;
-		case ICMP6_NDP_RS:
-			printf("       ICMP: [NDP] Router Solicitation\n");
-			break;
-		case ICMP6_NDP_RA:
-			printf("       ICMP: [NDP] Router Advertisement\n");
-			break;
-		case ICMP6_NDP_RM:
-			printf("       ICMP: [NDP] Redirect Message\n");
+			return;
 			break;
 		/* ping */
 		case ICMP6_ECHO_REQUEST:
 			printf("       ICMP: Echo Request\n");
 
-			packet_size = htons(ip->len);
-			icmp_packet = (unsigned char *) malloc(packet_size);
-
-			if (icmp_packet == NULL) {
-				fprintf(stderr, "Fatal error! Lack of free memory!\n");
-				exit(EXIT_FAILURE);
-			}
-
+			/* DEBUG */
 			struct s_icmp_ping *icmp_ping = (struct s_icmp_ping *) icmp_data;
-
-			icmp->type = ICMP4_ECHO_REQUEST;
-			icmp->code = 0;
-			icmp->checksum = 0;
-
 			printf("[id;seq]:[0x%x;0x%x]\n", htons(icmp_ping->id), htons(icmp_ping->seq));
 
-			memcpy(icmp_packet, icmp, sizeof(struct s_icmp));
-			memcpy(icmp_packet + sizeof(struct s_icmp), icmp_data, packet_size - sizeof(struct s_icmp));
-
-			// compute the checksum :c)
-			icmp->checksum = checksum(icmp_packet, packet_size);
-
-			// copy this structure again - because of the checksum
-			memcpy(icmp_packet, icmp, sizeof(struct s_icmp));
+			/* fill into the header known statements */
+			icmp->type = ICMP4_ECHO_REQUEST;
+			icmp->code = 0;
 
 			break;
 		case ICMP6_ECHO_REPLY:
 			printf("       ICMP: Echo Reply\n");
+			return;
 			break;
+		/* nothing interesting */
 		default:
 			printf("       ICMP: unknown: %d/0x%x\n", icmp->type, icmp->type);
+			return;
 			break;
 	}
 
-	/* where to send this ICMP */
+	/* copy data into the packet */
+	memcpy(icmp_packet, icmp, sizeof(struct s_icmp));
+	memcpy(icmp_packet + sizeof(struct s_icmp), icmp_data,
+	    packet_size - sizeof(struct s_icmp));
+
+	/* compute the checksum */
+	icmp->checksum = checksum(icmp_packet, packet_size);
+
+	/* copy this structure again - because of the checksum */
+	memcpy(icmp_packet, icmp, sizeof(struct s_icmp));
+
+	/* decide where to send this ICMP */
 	ip4_addr = ipaddr_6to4((struct in6_addr) ip->ip_dest);
 	printf("    Send to: %s\n", inet_ntoa(ip4_addr));
 
 	/* send */
 	send_there(ip4_addr, ip->hop_limit, IPPROTO_ICMP, icmp_packet, packet_size);
 
+	/* free allocated memory */
 	free(icmp_packet);
 	icmp_packet = NULL;
 

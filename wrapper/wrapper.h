@@ -69,6 +69,16 @@ struct s_icmp_ping {
 	unsigned short seq;		/* 16 b; sequence value for ECHO REPLY */
 };
 
+/* ICMPv6 - NDP NS structure */
+struct s_icmp_ndp_ns {
+	unsigned int	zeros;		/*  32 b; reserved section */
+	struct in6_addr	target;		/* 128 b; target IP address */	
+};
+struct s_icmp_ndp_option {
+	unsigned char	type;		/*  8 b; type of the option */
+	unsigned char	len;		/*  8 b; length of the option (including this header!) */
+};
+
 /* ICMP types */
 #define ICMP4_ECHO_REQUEST	0x8
 #define ICMP4_ECHO_REPLY	0x0
@@ -84,7 +94,7 @@ struct s_icmp_ping {
 
 /* Prototypes */
 void process_packet6(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
-void process_icmp6(struct s_ip6 *ip, const unsigned char *payload);
+void process_icmp6(const struct s_ip6 *ip, const unsigned char *payload);
 
 void send_there(struct in_addr ip4_addr, unsigned char ttl, unsigned int type, unsigned char *payload, unsigned int paylen);
 

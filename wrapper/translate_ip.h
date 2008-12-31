@@ -9,7 +9,7 @@ struct ip6addr_ip4part {
 	unsigned char	d;
 };
 
-struct in_addr ipaddr_6to4(struct in6_addr ip6_addr);
+struct in_addr ipaddr_6to4(const struct in6_addr ip6_addr);
 //in6_addr ipaddr_4to6(in_addr ip_addr);
 
 #endif

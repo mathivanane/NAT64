@@ -31,4 +31,6 @@
 - create some home web page (may be a wiki?)
 
 == PostFinal stage ==
-- rewrite to C :c)
+- optimise
+  - translation_ip.c -> don't translate IPv6 to IPv4 through a string
+- rewrite DNS wrapping resolver into C
