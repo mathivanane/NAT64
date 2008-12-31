@@ -48,13 +48,13 @@ trap "QUIT" do; exit; end
 
 services = []
 ### Start DNS resolver function
-if $config['resolver']
+if $config['resolver'] == 1
 	$resolver = Resolver.new
 	services << Thread.start do; $resolver.start;  end
 end
 
 ### Start IPv6-to-IPv4 wrapper
-if $config['wrapper']
+if $config['wrapper'] == 1
 	$wrapper = Wrapper.new
 	services << Thread.start do; $wrapper.start; end
 end

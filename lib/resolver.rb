@@ -18,11 +18,14 @@ class Resolver
 
 	def start
 		@resolver = UDPSocket.open Socket::AF_INET6
-		if @resolver.bind $config['resolver_ip'], 53
-			puts "Started DNS resolver on IPv6 address #{$config['resolver_ip']}" if @debug
-		else
-			puts "DNS resolver not started!" if @debug
+		begin
+			@resolver.bind $config['resolver_ip'], 53
+		#rescue Errno::EPERM
+		rescue Errno::EACCES
+			$stderr.puts "You have to run #{$0} as root!"
+			exit!
 		end
+		puts "Started DNS resolver on IPv6 address #{$config['resolver_ip']}" if @debug
 
 		loop do
 			puts "---------- start ----------" if @debug
