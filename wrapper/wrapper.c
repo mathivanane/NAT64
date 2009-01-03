@@ -1,35 +1,30 @@
 #include "wrapper.h"
 
+struct s_mac_addr *mac;			/* MAC address of the device */
+char *dev;				/* capture device name */
+int  dev_index;				/* capture device index */
+
 int main(int argc, char **argv)
 {
 
-	char *dev = NULL;			/* capture device name */
 	char errbuf[PCAP_ERRBUF_SIZE];		/* error buffer */
 	pcap_t *handle;				/* packet capture handle */
 
 	//char filter_exp[] = "ip6";		/* filter expression */
 	char filter_exp[] = "icmp6";		/* filter expression */
 	struct bpf_program fp;			/* compiled filter program (expression) */
-	bpf_u_int32 mask;			/* subnet mask */
-	bpf_u_int32 net;			/* ip */
-	int num_packets = 0;			/* number of packets to capture */
+	int num_packets = 0;			/* number of packets to capture; 0 = infinite */
 
 	/* find a capture device */
+	dev = NULL;
 	dev = pcap_lookupdev(errbuf);
 	if (dev == NULL) {
 		fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
 		exit(EXIT_FAILURE);
 	}
-	
-	/* get network number and mask associated with capture device */
-	if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1) {
-		fprintf(stderr, "Couldn't get netmask for device %s: %s\n", dev, errbuf);
-		net = 0;
-		mask = 0;
-	}
 
 	/* print capture info */
-	printf("Device:  %s\n", dev);
+	printf("Device: %s\n", dev);
 	printf("Number of packets: %d\n", num_packets);
 	printf("Filter expression: %s\n", filter_exp);
 
@@ -46,17 +41,25 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	/* obtain MAC address of the device */
+	mac = (struct s_mac_addr *) malloc(sizeof(struct s_mac_addr));
+	if (get_mac_addr(dev, mac) != 0) {
+		fprintf(stderr, "Couldn't get device MAC address\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/* get index of the device */
+	dev_index = get_dev_index(dev);
+
 	/* compile the filter expression */
-	if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1) {
-		fprintf(stderr, "Couldn't parse filter %s: %s\n",
-		    filter_exp, pcap_geterr(handle));
+	if (pcap_compile(handle, &fp, filter_exp, 0, 0) == -1) {
+		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
 		exit(EXIT_FAILURE);
 	}
 
 	/* apply the compiled filter */
 	if (pcap_setfilter(handle, &fp) == -1) {
-		fprintf(stderr, "Couldn't install filter %s: %s\n",
-		    filter_exp, pcap_geterr(handle));
+		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(handle));
 		exit(EXIT_FAILURE);
 	}
 

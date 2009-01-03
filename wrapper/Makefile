@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -O0
 LDFLAGS = -L/usr/lib -lpcap
 
-all: wrapper.o process.o translate_ip.o connections.o checksum.o
+all: wrapper.o process.o translate_ip.o connections.o checksum.o if.o
 	$(CC) $(CFLAGS) $(LDFLAGS) *.o	-o wrapper
 
 wrapper.o: wrapper.c wrapper.h
@@ -19,6 +19,9 @@ connections.o: connections.c wrapper.h
 
 checksum.o: checksum.c
 	$(CC) $(CFLAGS) -c checksum.c		-o checksum.o
+
+if.o: if.c wrapper.h
+	$(CC) $(CFLAGS) -c if.c			-o if.o
 
 clean:
 	rm -f wrapper *.o
