@@ -32,6 +32,34 @@ int get_mac_addr(const char *dev, struct s_mac_addr *addr)
 }
 
 /*
+ * Return the IP address
+ */
+int get_ip_addr(const char *dev, struct in_addr *addr)
+{
+	struct ifreq ifr;
+	int s, ret;
+
+	if ((s = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+		return -1;
+	}
+
+	memset(&ifr, 0x00, sizeof(ifr));
+	strcpy(ifr.ifr_name, dev);
+	
+	if (ioctl(s, SIOCGIFADDR, &ifr) == 0) {
+		memcpy(addr, &ifr.ifr_addr.sa_data[2], sizeof(struct in_addr));
+		ret = 0;
+	}
+	else {
+		ret = -1;
+	}
+
+	close(s);
+
+	return ret;
+}
+
+/*
  * Return device index
  */
 int get_dev_index(const char *dev)

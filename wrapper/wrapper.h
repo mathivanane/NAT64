@@ -41,6 +41,18 @@ struct s_ethernet {
 };
 
 /* IPv4 header structure */
+struct s_ip4 {
+	unsigned char	ver_ihl;
+	unsigned char	tos;		/*  8 b; type of service */
+	unsigned short	pckt_len;	/* 16 b; total lenght of the packet (IP header + payload) */
+	unsigned short	id;		/* 16 b; id of the packet - for purpose of fragmentation */
+	unsigned short	flags_offset;	/* 16 b; 3 b - flags, 13 b - fragment offset in bytes */
+	unsigned char	ttl;		/*  8 b; time to live */
+	unsigned char	proto;		/*  8 b; protocol in the payload */
+	unsigned short	checksum;	/* 16 b */
+	struct in_addr	ip_src;		/* 32 b; source address */
+	struct in_addr	ip_dest;	/* 32 b; destination address */
+};
 
 /* IPv6 header structure */
 struct s_ip6 {
@@ -56,11 +68,9 @@ struct s_ip6 {
 
 /* pseudo IPv6 header for checksum */
 struct s_ip6_pseudo {
-	//unsigned short ip_src[8];
-	//unsigned short ip_dest[8];
 	struct in6_addr	ip_src;		/* 128 b; source address */	
 	struct in6_addr	ip_dest;	/* 128 b; destination address */
-	unsigned short	len;		/*  16 b; payload length */
+	unsigned int	len;		/*  32 b; payload length */
 	unsigned int	zeros:24;	/*  24 b; reserved */
 	unsigned char	next_header;	/*   8 b; next header */
 };
@@ -115,6 +125,9 @@ struct s_icmp_ndp_na {
 #define INNAF_S		0x40		/* solicited flag */
 #define INNAF_O		0x20		/* override flag */
 
+/* Missing ethertypes */
+#define ETHERTYPE_IPV6	0x86dd
+
 /* ICMP types */
 #define ICMP4_ECHO_REQUEST	0x8
 #define ICMP4_ECHO_REPLY	0x0
@@ -130,20 +143,29 @@ struct s_icmp_ndp_na {
 
 /* Prototypes */
 int get_mac_addr(const char *dev, struct s_mac_addr *addr);
+int get_ip_addr(const char *dev, struct in_addr *addr);
 int get_dev_index(const char *dev);
 
-void process_packet6(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
+void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
+
+void process_packet4(const struct s_ethernet *eth, const unsigned char *packet);
+void process_icmp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short packet_size);
+
+void process_packet6(const struct s_ethernet *eth, const unsigned char *packet);
 void process_icmp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload);
 void process_ndp(const struct s_ethernet *eth_hdr, struct s_ip6 *ip_hdr, unsigned char *icmp_data);
 
 void send_there(struct in_addr ip4_addr, unsigned char ttl, unsigned int type, unsigned char *payload, unsigned int paylen);
-void send_ndp(struct ip6_hdr *ip, unsigned char *packet, int packet_size);
+void send_ipv6(unsigned char *packet, int packet_size);
 
 unsigned short checksum(const void *_buf, int len);
+unsigned short checksum_ipv6(struct in6_addr ip_src, struct in6_addr ip_dest, unsigned short paylen, unsigned char proto, unsigned char *data);
 
 /* Variables */
 extern struct s_mac_addr *mac;		/* MAC address of the device */
 extern char *dev;			/* capture device name */
 extern int  dev_index;			/* capture device index */
+extern struct in_addr *dev_ip;		/* IP address associated with the device */
+extern struct in6_addr ip6addr_wrapsix;	/* IPv6 prefix of WrapSix addresses */
 
 #endif
