@@ -31,12 +31,43 @@ unsigned short checksum(const void *_buf, int len)
 	return ~sum;
 }
 
+unsigned short checksum_ipv4(struct in_addr ip_src, struct in_addr ip_dest, unsigned short length, unsigned char proto, unsigned char *data)
+{
+	unsigned char		*buf_ip4_pseudo;
+	struct s_ip4_pseudo	*ip4_pseudo;
+	unsigned short		 sum;
+
+	buf_ip4_pseudo = (unsigned char *) malloc(sizeof(struct s_ip4_pseudo) + length);
+
+	if (buf_ip4_pseudo == NULL) {
+		fprintf(stderr, "Fatal error! Lack of free memory!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	ip4_pseudo = (struct s_ip4_pseudo *) buf_ip4_pseudo;
+
+	ip4_pseudo->ip_src	= ip_src;
+	ip4_pseudo->ip_dest	= ip_dest;
+	ip4_pseudo->len		= htons(length);
+	ip4_pseudo->zeros	= 0x0;
+	ip4_pseudo->proto	= proto;
+
+	memcpy(buf_ip4_pseudo + sizeof(struct s_ip4_pseudo), data, length);
+
+	sum = checksum(buf_ip4_pseudo, sizeof(struct s_ip4_pseudo) + length);
+
+	free(buf_ip4_pseudo);
+	buf_ip4_pseudo = NULL;
+
+	return sum;
+}
+
 unsigned short checksum_ipv6(struct in6_addr ip_src, struct in6_addr ip_dest, unsigned short paylen, unsigned char proto, unsigned char *data)
 {
 	unsigned char		*buf_ip6_pseudo;
 	struct s_ip6_pseudo	*ip6_pseudo;
-	unsigned short		sum;
-	unsigned int		length = (unsigned int) paylen;
+	unsigned short		 sum;
+	unsigned int		 length = (unsigned int) paylen;
 
 	buf_ip6_pseudo = (unsigned char *) malloc(sizeof(struct s_ip6_pseudo) + length);
 

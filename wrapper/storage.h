@@ -10,7 +10,7 @@
 #include "jsw_rbtree.h"
 #include "wrapper.h"
 
-struct stg_conn_udp {
+struct stg_conn_tup {
 	unsigned short		port;
 	struct in_addr		addr_to;
 	struct in6_addr		addr_from;
@@ -27,15 +27,16 @@ struct stg_conn_icmp {
 	time_t			time;
 };
 
-int stg_conn_udp_cmp(const void *p1, const void *p2);
-void *stg_conn_udp_dup(void *p);
-void stg_conn_udp_rel(void *p);
+int stg_conn_tup_cmp(const void *p1, const void *p2);
+void *stg_conn_tup_dup(void *p);
+void stg_conn_tup_rel(void *p);
 
 int stg_conn_icmp_cmp(const void *p1, const void *p2);
 void *stg_conn_icmp_dup(void *p);
 void stg_conn_icmp_rel(void *p);
 
-extern jsw_rbtree_t *stg_conn_icmp;
+extern jsw_rbtree_t *stg_conn_tcp;
 extern jsw_rbtree_t *stg_conn_udp;
+extern jsw_rbtree_t *stg_conn_icmp;
 
 #endif
