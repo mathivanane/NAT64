@@ -85,6 +85,12 @@ struct s_tcp {
 };
 
 /* UDP structure */
+struct s_udp {
+	unsigned short	port_src;	/* 16 b; source port */
+	unsigned short	port_dest;	/* 16 b; destination port */
+	unsigned short	len;		/* 16 b; header & data length */
+	unsigned short	checksum;	/* 16 b */
+};
 
 /* ICMP header structure */
 struct s_icmp {
@@ -149,9 +155,11 @@ int get_dev_index(const char *dev);
 void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
 
 void process_packet4(const struct s_ethernet *eth, const unsigned char *packet);
-void process_icmp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short packet_size);
+void process_udp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short data_size);
+void process_icmp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short data_size);
 
 void process_packet6(const struct s_ethernet *eth, const unsigned char *packet);
+void process_udp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload);
 void process_icmp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload);
 void process_ndp(const struct s_ethernet *eth_hdr, struct s_ip6 *ip_hdr, unsigned char *icmp_data);
 
@@ -162,10 +170,10 @@ unsigned short checksum(const void *_buf, int len);
 unsigned short checksum_ipv6(struct in6_addr ip_src, struct in6_addr ip_dest, unsigned short paylen, unsigned char proto, unsigned char *data);
 
 /* Variables */
-extern struct s_mac_addr *mac;		/* MAC address of the device */
-extern char *dev;			/* capture device name */
-extern int  dev_index;			/* capture device index */
-extern struct in_addr *dev_ip;		/* IP address associated with the device */
-extern struct in6_addr ip6addr_wrapsix;	/* IPv6 prefix of WrapSix addresses */
+extern struct s_mac_addr *mac;			/* MAC address of the device */
+extern char		 *dev;			/* capture device name */
+extern int		  dev_index;		/* capture device index */
+extern struct in_addr	 *dev_ip;		/* IP address associated with the device */
+extern struct in6_addr	  ip6addr_wrapsix;	/* IPv6 prefix of WrapSix addresses */
 
 #endif

@@ -1,5 +1,38 @@
 #include "storage.h"
 
+/*** UDP ***/
+int stg_conn_udp_cmp(const void *p1, const void *p2)
+{
+	struct stg_conn_udp *pp1 = (struct stg_conn_udp *) p1;
+	struct stg_conn_udp *pp2 = (struct stg_conn_udp *) p2;
+
+	if (pp1->port < pp2->port) return -1;
+	if (pp1->port > pp2->port) return  1;
+	return 0;
+}
+
+void *stg_conn_udp_dup(void *p)
+{
+	struct stg_conn_udp *pp = (struct stg_conn_udp *) p;
+	struct stg_conn_udp *p_new;
+
+	if ((p_new = (struct stg_conn_udp *) malloc(sizeof(struct stg_conn_udp))) == NULL) {
+		fprintf(stderr, "Fatal Error! Lack of free memory!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	memcpy(p_new, pp, sizeof(struct stg_conn_udp));
+
+	return (void *) p_new;
+}
+
+void stg_conn_udp_rel(void *p)
+{
+	free(p);
+	p = NULL;
+}
+
+/*** ICMP ***/
 int stg_conn_icmp_cmp(const void *p1, const void *p2)
 {
 	struct stg_conn_icmp *pp1 = (struct stg_conn_icmp *) p1;

@@ -7,6 +7,7 @@ int  dev_index;				/* capture device index */
 struct in_addr *dev_ip;			/* IP address associated with the device */
 
 /* storage trees */
+jsw_rbtree_t *stg_conn_udp;
 jsw_rbtree_t *stg_conn_icmp;
 
 int main(int argc, char **argv)
@@ -16,11 +17,12 @@ int main(int argc, char **argv)
 	pcap_t *handle;				/* packet capture handle */
 
 	//char filter_exp[] = "ip6";		/* filter expression */
-	char filter_exp[] = "icmp6 or icmp";	/* filter expression */
+	char filter_exp[] = "icmp6 or icmp or udp";	/* filter expression */
 	struct bpf_program fp;			/* compiled filter program (expression) */
 	int num_packets = 0;			/* number of packets to capture; 0 = infinite */
 
 	/* initialize the storage for connections */
+	stg_conn_udp  = jsw_rbnew(&stg_conn_udp_cmp, &stg_conn_udp_dup, &stg_conn_udp_rel);
 	stg_conn_icmp = jsw_rbnew(&stg_conn_icmp_cmp, &stg_conn_icmp_dup, &stg_conn_icmp_rel);
 
 	/* find a capture device */

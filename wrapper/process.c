@@ -62,6 +62,7 @@ void process_packet4(const struct s_ethernet *eth, const unsigned char *packet)
 			break;
 		case IPPROTO_UDP:
 			printf("   Protocol: UDP\n");
+			process_udp4(eth, ip, payload, htons(ip->pckt_len) - header_length);
 			break;
 		case IPPROTO_ICMP:
 			printf("   Protocol: ICMP\n");
@@ -71,6 +72,105 @@ void process_packet4(const struct s_ethernet *eth, const unsigned char *packet)
 			printf("   Protocol: unknown (%d/0x%x)\n", ip->proto, ip->proto);
 			break;
 	}
+}
+
+void process_udp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short data_size)
+{
+	struct s_udp		*udp;
+	struct ip6_hdr		*ip;
+	struct s_ethernet	*eth;
+
+	unsigned char	*udp_data;
+	unsigned char	*packet;
+	unsigned int	 packet_size;
+
+	struct stg_conn_udp *ent = NULL;
+	struct stg_conn_udp *ent_tmp;
+
+	/* define ICMP header */
+	udp = (struct s_udp *) payload;
+	/* define/compute ICMP data offset */
+	udp_data = (unsigned char *) (payload + sizeof(struct s_udp));
+
+	/* create temporary data entry for finding */
+	if ((ent_tmp = (struct stg_conn_udp *) malloc(sizeof(struct stg_conn_udp))) == NULL) {
+		fprintf(stderr, "Fatal Error! Lack of free memory!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/* the only needed field is port */
+	ent_tmp->port = htons(udp->port_dest);
+
+	/* find the appropriate connection */
+	ent = jsw_rbfind(stg_conn_udp, ent_tmp);
+
+	/* free allocated memory */
+	free(ent_tmp);
+
+	/* check if this packet is from wrapped connection */
+	if (ent == NULL) {
+		fprintf(stderr, "Error: data not found\n");
+		return;
+	}
+	else if (memcmp(&ent->addr_to, &ip_hdr->ip_src, sizeof(struct in_addr))) {
+		fprintf(stderr, "Error: data not appropriate\n");
+		printf("     Ent-to: %s\n", inet_ntoa(ent->addr_to));
+		printf("    IP-from: %s\n", inet_ntoa(ip_hdr->ip_src));
+		return;
+	}
+
+	packet_size = data_size + SIZE_ETHERNET + SIZE_IP6;
+	packet = (unsigned char *) malloc(packet_size);
+
+	if (packet == NULL) {
+		fprintf(stderr, "Fatal error! Lack of free memory!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/* initialize the packet with zeros */
+	memset(packet, 0x0, packet_size);
+
+	/* parse the packet into structures */
+	eth	= (struct s_ethernet *)	packet;
+	ip	= (struct ip6_hdr *)	(packet + SIZE_ETHERNET);
+
+	/* assemble the ethernet header */
+	memcpy(&eth->src, mac, sizeof(struct s_mac_addr));
+	eth->dest = ent->mac;
+	eth->type = htons(ETHERTYPE_IPV6);
+
+	/* assemble the IPv6 header */
+	build_ip6_hdr(ip,			 /* ip6_hdr structure */
+		      ipaddr_4to6(ent->addr_to), /* source address */
+		      ent->addr_from,		 /* destination address */
+		      data_size,		 /* payload length */
+		      IPPROTO_UDP,		 /* protocol */
+		      ip_hdr->ttl);		 /* ttl */
+
+	char ip6addr[INET6_ADDRSTRLEN];
+	inet_ntop(AF_INET6, &ent->addr_from, ip6addr, sizeof(ip6addr));
+	printf("    Send to: %s\n", ip6addr);
+
+	/* set the checksum to zero */
+	udp->checksum = 0x0;
+
+	/* copy UDP header */
+	memcpy(packet + SIZE_ETHERNET + SIZE_IP6, udp, sizeof(struct s_udp));
+
+	/* copy UDP data */
+	memcpy(packet + SIZE_ETHERNET + SIZE_IP6 + sizeof(struct s_udp), udp_data, data_size - sizeof(struct s_udp));
+
+	/* compute the UDP checksum */
+	udp->checksum = checksum_ipv6(ip->ip6_src, ip->ip6_dst, data_size, ip->ip6_nxt, (unsigned char *) (packet + SIZE_ETHERNET + SIZE_IP6));
+
+	/* return the checksum into the packet */
+	memcpy(packet + SIZE_ETHERNET + SIZE_IP6, udp, sizeof(struct s_udp));
+
+	/* send the wrapped packet back */
+	send_ipv6(packet, packet_size);
+
+	/* free allocated memory */
+	free(packet);
 }
 
 void process_icmp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short data_size)
@@ -164,7 +264,7 @@ void process_icmp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const
 		      ent->addr_from,		 /* destination address */
 		      data_size,		 /* payload length */
 		      IPPROTO_ICMPV6,		 /* protocol */
-		      255);			 /* ttl */
+		      ip_hdr->ttl);		 /* ttl */
 
 	char ip6addr[INET6_ADDRSTRLEN];
 	inet_ntop(AF_INET6, &ent->addr_from, ip6addr, sizeof(ip6addr));
@@ -227,6 +327,7 @@ void process_packet6(const struct s_ethernet *eth, const unsigned char *packet)
 			break;
 		case IPPROTO_UDP:
 			printf("   Protocol: UDP\n");
+			process_udp6(eth, ip, payload);
 			break;
 		case IPPROTO_ICMPV6:
 			printf("   Protocol: ICMPv6\n");
@@ -236,6 +337,97 @@ void process_packet6(const struct s_ethernet *eth, const unsigned char *packet)
 			printf("   Protocol: unknown (%d/0x%x)\n", ip->next_header, ip->next_header);
 			break;
 	}
+}
+
+void process_udp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload)
+{
+	struct s_udp	*udp;
+	struct in_addr	 ip4_addr;
+
+	unsigned char	*udp_data;
+	unsigned char	*udp_packet;
+	unsigned char	 ent_save = 0;
+
+	struct stg_conn_udp *ent;
+	struct stg_conn_udp *ent_tmp;
+
+	unsigned short	 packet_size = htons(ip->len);
+
+	/* define UDP header */
+	udp = (struct s_udp *) payload;
+
+	/* define/compute UDP data offset */
+	udp_data = (unsigned char *) (payload + sizeof(struct s_udp));
+
+	/* check whether the connection is not already saved */
+	/* create temporary data entry for finding */
+	if ((ent_tmp = (struct stg_conn_udp *) malloc(sizeof(struct stg_conn_udp))) == NULL) {
+		fprintf(stderr, "Fatal Error! Lack of free memory!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/* the only needed field is port */
+	ent_tmp->port = htons(udp->port_src);
+
+	/* find the appropriate connection */
+	ent = jsw_rbfind(stg_conn_udp, ent_tmp);
+
+	/* free allocated memory */
+	free(ent_tmp);
+
+	/* check if this packet is from wrapped connection */
+	if (ent == NULL) {
+		printf("New connection\n");
+		/* save the connection */
+		ent = (struct stg_conn_udp *) malloc(sizeof(struct stg_conn_udp));
+		ent->port	= htons(udp->port_src);
+		ent->addr_from	= ip->ip_src;
+		ent->mac	= eth->src;
+		time(&ent->time);
+		memset(&ent->addr_to, 0x0, sizeof(struct in_addr));
+		ent_save = 1;
+	}
+	else {
+		printf("Connection found\n");
+		printf("     Conn #: %d\n", jsw_rbsize(stg_conn_udp));
+		/* set fresh timestamp */
+		time(&ent->time);
+	}
+
+	/* create one big UDP packet */
+	udp_packet = (unsigned char *) malloc(packet_size);
+
+	if (udp_packet == NULL) {
+		fprintf(stderr, "Fatal error! Lack of free memory!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/* the checksum will not be computed */
+	udp->checksum = 0x0;
+
+	/* copy data into the packet */
+	memcpy(udp_packet, udp, sizeof(struct s_udp));
+	memcpy(udp_packet + sizeof(struct s_udp), udp_data, packet_size - sizeof(struct s_udp));
+
+	/* decide where to send this UDP */
+	ip4_addr = ipaddr_6to4(ip->ip_dest);
+	printf("    Send to: %s\n", inet_ntoa(ip4_addr));
+
+	/* send */
+	send_there(ip4_addr, ip->hop_limit, IPPROTO_UDP, udp_packet, packet_size);
+
+	/* save the connection */
+	if (ent_save == 1) {
+		ent->addr_to = ip4_addr;
+		jsw_rbinsert(stg_conn_udp, ent);
+		printf("     Conn #: %d\n", jsw_rbsize(stg_conn_udp));
+		/* the entry is not needed now and should be freed */
+		free(ent);
+	}
+
+	/* free allocated memory */
+	free(udp_packet);
+	udp_packet = NULL;
 }
 
 void process_icmp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload)
@@ -253,7 +445,8 @@ void process_icmp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigne
 	unsigned short packet_size = htons(ip->len);
 
 	/* define ICMP header */
-	icmp = (struct s_icmp *) (payload);
+	icmp = (struct s_icmp *) payload;
+
 	/* define/compute ICMP data offset */
 	icmp_data = (unsigned char *) (payload + sizeof(struct s_icmp));
 
