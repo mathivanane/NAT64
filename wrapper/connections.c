@@ -39,7 +39,7 @@ void send_there(struct in_addr ip4_addr, unsigned char ttl, unsigned int type, u
 	close(sock);
 }
 
-void send_ipv6(unsigned char *packet, int packet_size)
+void send_raw(unsigned char *packet, int packet_size)
 {
 	struct sockaddr_ll	socket_address;	/* target address */
 	struct ifreq		ifr;		/* interface */

@@ -2,9 +2,10 @@
 #include "storage.h"
 
 struct s_mac_addr *mac;			/* MAC address of the device */
-char *dev;				/* capture device name */
-int  dev_index;				/* capture device index */
-struct in_addr *dev_ip;			/* IP address associated with the device */
+char		  *dev;			/* capture device name */
+int		   dev_index;		/* capture device index */
+struct in_addr	  *dev_ip;		/* IP address associated with the device */
+struct in_addr	   ip4addr_wrapsix;	/* IPv4 address for WrapSix */
 
 /* storage trees */
 jsw_rbtree_t *stg_conn_tcp;
@@ -68,6 +69,9 @@ int main(int argc, char **argv)
 
 	/* get index of the device */
 	dev_index = get_dev_index(dev);
+
+	/* set the WrapSix IPv4 address */
+	inet_aton("10.0.0.111", &ip4addr_wrapsix);
 
 	/* compile the filter expression */
 	if (pcap_compile(handle, &fp, filter_exp, 0, 0) == -1) {

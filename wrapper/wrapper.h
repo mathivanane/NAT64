@@ -40,6 +40,19 @@ struct s_ethernet {
         unsigned short		type;	/* 16 b; IP/ARP/RARP/... */
 };
 
+/* ARP structure */
+struct s_arp {
+	unsigned short		hw;		/* 16 b; hardware type [0x0001] */
+	unsigned short		proto;		/* 16 b; protocol type [0x0800] */
+	unsigned char		hw_len;		/*  8 b; length of hardware address in bytes [0x06] */
+	unsigned char		proto_len;	/*  8 b; length of protocol address in bytes [0x04] */
+	unsigned short		opcode;		/* 16 b; operation code: [0x0001] or [0x0002] */
+	struct s_mac_addr	mac_src;	/* 48 b; sender hardware address */
+	struct in_addr		ip_src;		/* 32 b; sender protocol address */
+	struct s_mac_addr	mac_dest;	/* 48 b; target hardware address */
+	struct in_addr		ip_dest;	/* 32 b; target protocol address */
+}__attribute__((__packed__));
+
 /* IPv4 header structure */
 struct s_ip4 {
 	unsigned char	ver_ihl;
@@ -171,6 +184,7 @@ void process_packet4(const struct s_ethernet *eth, const unsigned char *packet);
 void process_tcp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short data_size);
 void process_udp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short data_size);
 void process_icmp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short data_size);
+void process_arp(const struct s_ethernet *eth_hdr, const unsigned char *arp_packet);
 
 void process_packet6(const struct s_ethernet *eth, const unsigned char *packet);
 void process_tcp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload);
@@ -179,7 +193,7 @@ void process_icmp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigne
 void process_ndp(const struct s_ethernet *eth_hdr, struct s_ip6 *ip_hdr, unsigned char *icmp_data);
 
 void send_there(struct in_addr ip4_addr, unsigned char ttl, unsigned int type, unsigned char *payload, unsigned int paylen);
-void send_ipv6(unsigned char *packet, int packet_size);
+void send_raw(unsigned char *packet, int packet_size);
 
 unsigned short checksum(const void *_buf, int len);
 unsigned short checksum_ipv4(struct in_addr ip_src, struct in_addr ip_dest, unsigned short length, unsigned char proto, unsigned char *data);
@@ -191,5 +205,6 @@ extern char		 *dev;			/* capture device name */
 extern int		  dev_index;		/* capture device index */
 extern struct in_addr	 *dev_ip;		/* IP address associated with the device */
 extern struct in6_addr	  ip6addr_wrapsix;	/* IPv6 prefix of WrapSix addresses */
+extern struct in_addr	  ip4addr_wrapsix;	/* IPv4 address for WrapSix */
 
 #endif

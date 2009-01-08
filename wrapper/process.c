@@ -1,4 +1,5 @@
 #include <net/ethernet.h>
+#include <net/if_arp.h>
 
 #include "wrapper.h"
 #include "translate_ip.h"
@@ -17,12 +18,16 @@ void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char
 
 	switch (htons(eth->type)) {
 		case ETHERTYPE_IP:
-			printf("\n         IP: 4\n");
+			printf("\n      Proto: IPv4\n");
 			process_packet4(eth, payload);
 			break;
 		case ETHERTYPE_IPV6:
-			printf("\n         IP: 6\n");
+			printf("\n      Proto: IPv6\n");
 			process_packet6(eth, payload);
+			break;
+		case ETHERTYPE_ARP:
+			printf("\n      Proto: ARP\n");
+			process_arp(eth, payload);
 			break;
 		default:
 			printf("\n         IP: unknown (%d/0x%x)\n", htons(eth->type), htons(eth->type));
@@ -162,7 +167,7 @@ void process_tcp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const 
 	memcpy(packet + SIZE_ETHERNET + SIZE_IP6, tcp, sizeof(struct s_tcp));
 
 	/* send the wrapped packet back */
-	send_ipv6(packet, packet_size);
+	send_raw(packet, packet_size);
 
 	/* free allocated memory */
 	free(packet);
@@ -261,7 +266,7 @@ void process_udp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const 
 	memcpy(packet + SIZE_ETHERNET + SIZE_IP6, udp, sizeof(struct s_udp));
 
 	/* send the wrapped packet back */
-	send_ipv6(packet, packet_size);
+	send_raw(packet, packet_size);
 
 	/* free allocated memory */
 	free(packet);
@@ -377,10 +382,72 @@ void process_icmp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const
 	memcpy(packet + SIZE_ETHERNET + SIZE_IP6, icmp, sizeof(struct s_icmp));
 
 	/* send the wrapped packet back */
-	send_ipv6(packet, packet_size);
+	send_raw(packet, packet_size);
 
 	/* free allocated memory */
 	free(packet);
+}
+
+void process_arp(const struct s_ethernet *eth_hdr, const unsigned char *arp_packet)
+{
+	struct s_arp		*arp;		/* ARP request packet */
+	struct s_arp		*arpr;		/* ARP reply packet */
+	struct s_ethernet	*eth;
+	unsigned char		*packet;
+	unsigned short		 packet_size;
+
+	arp = (struct s_arp *) arp_packet;
+
+	/* process only requests */
+	if (htons(arp->opcode) != ARPOP_REQUEST) {
+		printf("==> Not ARP request <==\n");
+		return;
+	}
+
+	/* DEBUG: print source and destination IP addresses */
+	printf("    IP From: %s\n", inet_ntoa(arp->ip_src));
+	printf("    IP   To: %s\n", inet_ntoa(arp->ip_dest));
+	printf("   MAC From: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", arp->mac_src.a, arp->mac_src.b, arp->mac_src.c, arp->mac_src.d, arp->mac_src.e, arp->mac_src.f);
+	printf("   MAC   To: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", arp->mac_dest.a, arp->mac_dest.b, arp->mac_dest.c, arp->mac_dest.d, arp->mac_dest.e, arp->mac_dest.f);
+
+	/* check if this packet is ours */
+	if (memcmp(&ip4addr_wrapsix, &arp->ip_dest, 4)) {
+		printf("==> This packet is not ours! <==\n");
+		return;
+	}
+
+	/* compute the packet size */
+	packet_size = SIZE_ETHERNET + sizeof(struct s_arp);
+
+	/* allocate enough memory */
+	if ((packet = (unsigned char *) malloc(packet_size)) == NULL) {
+		fprintf(stderr, "Fatal Error! Lack of free memory!\n");
+		exit(EXIT_FAILURE);
+	}
+	memset(packet, 0x0, packet_size);
+
+	/* define ethernet header and ARP offsets */
+	eth  = (struct s_ethernet *) packet;
+	arpr = (struct s_arp *) (packet + SIZE_ETHERNET);
+
+	/* assemble the ethernet header */
+	eth->dest = eth_hdr->src;
+	memcpy(&eth->src, mac, sizeof(struct s_mac_addr));
+	eth->type = htons(ETHERTYPE_ARP);
+
+	/* assemble the ARP reply part */
+	arpr->hw	= htons(ARPHRD_ETHER);
+	arpr->proto	= htons(ETHERTYPE_IP);
+	arpr->hw_len	= 0x06;
+	arpr->proto_len	= 0x04;
+	arpr->opcode	= htons(ARPOP_REPLY);
+	arpr->mac_src	= eth->src;
+	arpr->mac_dest	= eth->dest;
+	arpr->ip_src	= ip4addr_wrapsix;
+	arpr->ip_dest	= arp->ip_src;
+
+	/* send ARP reply */
+	send_raw(packet, packet_size);
 }
 
 /*** IPv6 ***/
@@ -816,7 +883,7 @@ void process_ndp(const struct s_ethernet *eth_hdr, struct s_ip6 *ip_hdr, unsigne
 	icmp->checksum = checksum_ipv6(ip->ip6_src, ip->ip6_dst, htons(ip->ip6_plen), ip->ip6_nxt, (unsigned char *) icmp);
 
 	/* send the packet */
-	send_ipv6(packet, packet_size);
+	send_raw(packet, packet_size);
 
 	/* free allocated memory */
 	free(packet);
