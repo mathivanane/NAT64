@@ -97,6 +97,14 @@ struct s_ip6_pseudo {
 	unsigned char	next_header;	/*   8 b; next header */
 };
 
+/* IPv6 fragment header */
+struct s_ip6_fragment {
+	unsigned char	next_header;	/*  8 b; next header */
+	unsigned char	zeros;		/*  8 b; reserved */
+	unsigned short	offset_flag;	/* 16 b; 13 b - data offset, 2 b - reserved, 1 b - flag */
+	unsigned int	id;		/* 32 b; identification */
+};
+
 /* TCP structure */
 struct s_tcp {
 	unsigned short	port_src;	/* 16 b; source port */
@@ -187,13 +195,14 @@ void process_icmp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const
 void process_arp(const struct s_ethernet *eth_hdr, const unsigned char *arp_packet);
 
 void process_packet6(const struct s_ethernet *eth, const unsigned char *packet);
-void process_tcp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload);
+void process_tcp6(const struct s_ethernet *eth_hdr, struct s_ip6 *ip_hdr, const unsigned char *payload);
 void process_udp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload);
 void process_icmp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload);
 void process_ndp(const struct s_ethernet *eth_hdr, struct s_ip6 *ip_hdr, unsigned char *icmp_data);
 
 void send_there(struct in_addr ip4_addr, unsigned char ttl, unsigned int type, unsigned char *payload, unsigned int paylen);
 void send_raw(unsigned char *packet, int packet_size);
+void send_raw_ipv4(struct in_addr ip4_addr, unsigned char *packet, int packet_size);
 
 unsigned short checksum(const void *_buf, int len);
 unsigned short checksum_ipv4(struct in_addr ip_src, struct in_addr ip_dest, unsigned short length, unsigned char proto, unsigned char *data);

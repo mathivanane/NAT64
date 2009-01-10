@@ -16,6 +16,7 @@ struct stg_conn_tup {
 	struct in6_addr		addr_from;
 	struct s_mac_addr	mac;
 	time_t			time;
+	unsigned int		packet_num;
 };
 
 struct stg_conn_icmp {

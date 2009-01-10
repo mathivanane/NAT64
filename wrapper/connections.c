@@ -39,10 +39,47 @@ void send_there(struct in_addr ip4_addr, unsigned char ttl, unsigned int type, u
 	close(sock);
 }
 
+void send_raw_ipv4(struct in_addr ip4_addr, unsigned char *packet, int packet_size)
+{
+	struct sockaddr_in	socket_address;
+
+	unsigned char		on = 1;
+	int			sock;
+
+	/* prepare data for RAW socket */
+	socket_address.sin_family = AF_INET;
+	socket_address.sin_port   = htons(0);
+	memcpy(&socket_address.sin_addr.s_addr, &ip4_addr, sizeof(struct in_addr));
+
+	/* initialize raw socket */
+	if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1) {
+		fprintf(stderr, "Couldn't open RAW socket.\n");
+		perror("socket()");
+		exit(EXIT_FAILURE);
+	}
+
+	/* we will provide our own IPv4 header */
+	if (setsockopt(sock, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) == -1) {
+		fprintf(stderr, "Couldn't apply the socket settings.\n");
+		perror("setsockopt()");
+		exit(EXIT_FAILURE);
+	}
+
+	/* send the packet */
+	if (sendto(sock, packet, packet_size, 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr)) != packet_size) {
+		fprintf(stderr, "Couldn't send a RAW packet.\n");
+		perror("sendto()");
+		exit(EXIT_FAILURE);
+	}
+
+	/* close the socket */
+	close(sock);
+}
+
 void send_raw(unsigned char *packet, int packet_size)
 {
-	struct sockaddr_ll	socket_address;	/* target address */
-	struct ifreq		ifr;		/* interface */
+	struct sockaddr_ll	socket_address;
+	struct ifreq		ifr;
 
 	int sock;
 
@@ -72,9 +109,9 @@ void send_raw(unsigned char *packet, int packet_size)
 		exit(EXIT_FAILURE);
 	}
 
-	/* send the NDP packet */
+	/* send the packet */
 	if (sendto(sock, packet, packet_size, 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) != packet_size) {
-		fprintf(stderr, "      Error: Couldn't send an IPv6 packet.\n");
+		fprintf(stderr, "Couldn't send a RAW packet.\n");
 		perror("sendto()");
 		exit(EXIT_FAILURE);
 	}

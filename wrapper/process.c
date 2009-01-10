@@ -5,8 +5,6 @@
 #include "translate_ip.h"
 #include "storage.h"
 
-struct in6_addr ip6addr_wrapsix;
-
 void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
 	const struct s_ethernet *eth;		/* the ethernet header */
@@ -30,7 +28,7 @@ void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char
 			process_arp(eth, payload);
 			break;
 		default:
-			printf("\n         IP: unknown (%d/0x%x)\n", htons(eth->type), htons(eth->type));
+			printf("\n      Proto: unknown (%d/0x%x)\n", htons(eth->type), htons(eth->type));
 			break;
 	}
 }
@@ -55,7 +53,7 @@ void process_packet4(const struct s_ethernet *eth, const unsigned char *packet)
 	printf("         To: %s\n", inet_ntoa(ip->ip_dest));
 
 	/* check if this packet is ours */
-	if (memcmp(dev_ip, &ip->ip_dest, 4)) {
+	if (memcmp(&ip4addr_wrapsix, &ip->ip_dest, 4)) {
 		printf("==> This packet is not ours! <==\n");
 		return;
 	}
@@ -82,12 +80,19 @@ void process_packet4(const struct s_ethernet *eth, const unsigned char *packet)
 
 void process_tcp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short data_size)
 {
-	struct s_tcp		*tcp;
-	struct ip6_hdr		*ip;
 	struct s_ethernet	*eth;
+	struct ip6_hdr		*ip;
+	struct s_ip6_fragment	*ip_frag;
+	struct s_tcp		*tcp;
 
 	unsigned char	*packet;
-	unsigned int	 packet_size;
+	unsigned short	 packet_size;
+	unsigned char	 do_frag = 0;
+	unsigned char	 last_frag = 0;
+	unsigned short	 frag_size = 1514 - SIZE_ETHERNET - SIZE_IP6 - 8 - 4;	/* 4 for alignment */
+	unsigned short	 data_frag_size;
+	unsigned char	*data_offset;
+	unsigned short	 data_frag_offset = 0;
 
 	struct stg_conn_tup *ent = NULL;
 	struct stg_conn_tup *ent_tmp;
@@ -121,56 +126,123 @@ void process_tcp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const 
 		printf("    IP-from: %s\n", inet_ntoa(ip_hdr->ip_src));
 		return;
 	}
-
-	packet_size = data_size + SIZE_ETHERNET + SIZE_IP6;
-	packet = (unsigned char *) malloc(packet_size);
-
-	if (packet == NULL) {
-		fprintf(stderr, "Fatal error! Lack of free memory!\n");
-		exit(EXIT_FAILURE);
-	}
-
-	/* initialize the packet with zeros */
-	memset(packet, 0x0, packet_size);
-
-	/* parse the packet into structures */
-	eth	= (struct s_ethernet *)	packet;
-	ip	= (struct ip6_hdr *)	(packet + SIZE_ETHERNET);
-
-	/* assemble the ethernet header */
-	memcpy(&eth->src, mac, sizeof(struct s_mac_addr));
-	eth->dest = ent->mac;
-	eth->type = htons(ETHERTYPE_IPV6);
-
-	/* assemble the IPv6 header */
-	build_ip6_hdr(ip,			 /* ip6_hdr structure */
-		      ipaddr_4to6(ent->addr_to), /* source address */
-		      ent->addr_from,		 /* destination address */
-		      data_size,		 /* payload length */
-		      IPPROTO_TCP,		 /* protocol */
-		      ip_hdr->ttl);		 /* ttl */
-
-	char ip6addr[INET6_ADDRSTRLEN];
-	inet_ntop(AF_INET6, &ent->addr_from, ip6addr, sizeof(ip6addr));
-	printf("    Send to: %s\n", ip6addr);
+	ent->packet_num++;
 
 	/* set the checksum to zero */
 	tcp->checksum = 0x0;
 
-	/* copy data into the packet */
-	memcpy(packet + SIZE_ETHERNET + SIZE_IP6, payload, data_size);
-
 	/* compute the TCP checksum */
-	tcp->checksum = checksum_ipv6(ip->ip6_src, ip->ip6_dst, data_size, ip->ip6_nxt, (unsigned char *) (packet + SIZE_ETHERNET + SIZE_IP6));
+	tcp->checksum = checksum_ipv6(ipaddr_4to6(ent->addr_to), ent->addr_from, data_size, IPPROTO_TCP, (unsigned char *) payload);
+	printf("   Checksum: 0x%x\n", tcp->checksum);
 
-	/* return the checksum into the packet */
-	memcpy(packet + SIZE_ETHERNET + SIZE_IP6, tcp, sizeof(struct s_tcp));
+	/* handle fragmentation */
+	packet_size = data_size + SIZE_ETHERNET + SIZE_IP6;
 
-	/* send the wrapped packet back */
-	send_raw(packet, packet_size);
+	/* check if the packet is not too big => fragment */
+	if (packet_size > 1514) {
+		do_frag = 1;
+		printf("...fragmenting: %d B\n", packet_size);
+	}
 
-	/* free allocated memory */
-	free(packet);
+	/* send so many packets how many is needed */
+	while (data_size) {
+		if (do_frag && data_size > frag_size) {
+			packet_size = 1514 - 4;
+			data_frag_size = frag_size;
+		}
+		else if (do_frag) {
+			packet_size = SIZE_ETHERNET + SIZE_IP6 + 8 + data_size;
+			data_frag_size = data_size;
+			last_frag = 1;
+			printf("...last fragment\n");
+		}
+		else {
+			data_frag_size = data_size;
+			printf("...not fragmenting: %d B\n", packet_size);
+		}
+
+		if ((packet = (unsigned char *) malloc(packet_size)) == NULL) {
+			fprintf(stderr, "Fatal error! Lack of free memory!\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/* initialize the packet with zeros */
+		memset(packet, 0x0, packet_size);
+
+		/* parse the packet into structures */
+		eth	= (struct s_ethernet *)	packet;
+		ip	= (struct ip6_hdr *)	(packet + SIZE_ETHERNET);
+		if (do_frag) {
+			if ((ip_frag = (struct s_ip6_fragment *) malloc(sizeof(struct s_ip6_fragment))) == NULL) {
+				fprintf(stderr, "Fatal error! Lack of free memory!\n");
+				exit(EXIT_FAILURE);
+			}
+			data_offset = (unsigned char *) (packet + SIZE_ETHERNET + SIZE_IP6 + sizeof(struct s_ip6_fragment));
+			memset(ip_frag, 0x0, sizeof(struct s_ip6_fragment));
+
+			ip_frag->next_header	= IPPROTO_TCP;
+			ip_frag->zeros		= 0x0;
+			ip_frag->id		= htonl(ent->port + ent->packet_num);
+			ip_frag->offset_flag	= (htons((data_frag_offset / 8) << 3));
+			if (!last_frag) {
+				ip_frag->offset_flag |= htons(0x1);
+			}
+
+			// copy it & free it
+			memcpy(packet + SIZE_ETHERNET + SIZE_IP6, ip_frag, sizeof(struct s_ip6_fragment));
+			free(ip_frag);
+		}
+		else {
+			data_offset = (unsigned char *) (ip + SIZE_IP6);
+		}
+
+		/* assemble the ethernet header */
+		memcpy(&eth->src, mac, sizeof(struct s_mac_addr));
+		eth->dest = ent->mac;
+		eth->type = htons(ETHERTYPE_IPV6);
+
+		/* assemble the IPv6 header */
+		if (do_frag) {
+			build_ip6_hdr(ip,			 /* ip6_hdr structure */
+				      ipaddr_4to6(ent->addr_to), /* source address */
+				      ent->addr_from,		 /* destination address */
+				      data_frag_size + 8,	 /* payload length + fragment header */
+				      IPPROTO_FRAGMENT,		 /* protocol */
+				      ip_hdr->ttl);		 /* ttl */
+		}
+		else {
+			build_ip6_hdr(ip,			 /* ip6_hdr structure */
+				      ipaddr_4to6(ent->addr_to), /* source address */
+				      ent->addr_from,		 /* destination address */
+				      data_frag_size,		 /* payload length */
+				      IPPROTO_TCP,		 /* protocol */
+				      ip_hdr->ttl);		 /* ttl */
+		}
+
+		char ip6addr[INET6_ADDRSTRLEN];
+		inet_ntop(AF_INET6, &ent->addr_from, ip6addr, sizeof(ip6addr));
+		printf("    Send to: %s\n", ip6addr);
+
+		/* copy data into the packet */
+		if (!do_frag) {
+			memcpy(packet + SIZE_ETHERNET + SIZE_IP6, payload, data_frag_size);
+		}
+		else {
+			memcpy(packet + SIZE_ETHERNET + SIZE_IP6 + sizeof(struct s_ip6_fragment), (unsigned char *) (payload + data_frag_offset), data_frag_size);
+		}
+
+		/* send the wrapped packet back */
+		send_raw(packet, packet_size);
+
+		/* free allocated memory */
+		free(packet);
+		packet = NULL;
+		eth = NULL;
+		ip = NULL;
+
+		data_size -= data_frag_size;
+		data_frag_offset += data_frag_size;
+	}
 }
 
 void process_udp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const unsigned char *payload, unsigned short data_size)
@@ -471,8 +543,7 @@ void process_packet6(const struct s_ethernet *eth, const unsigned char *packet)
 	inet_ntop(AF_INET6, &ip->ip_dest, ip6addr, sizeof(ip6addr));
 	printf("         To: %s\n", ip6addr);
 
-	/* check if this packet is ours - partially hardcoded for now */
-	inet_pton(AF_INET6, "fc00:1::", &ip6addr_wrapsix);
+	/* check if this packet is ours */
 	inet_pton(AF_INET6, "ff02::1:ff00:0", &ip6addr_ndp_multicast);
 	/* check for our prefix || NDP */
 	if (memcmp(&ip6addr_wrapsix, &ip->ip_dest, 12) != 0
@@ -501,18 +572,20 @@ void process_packet6(const struct s_ethernet *eth, const unsigned char *packet)
 	}
 }
 
-void process_tcp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload)
+void process_tcp6(const struct s_ethernet *eth_hdr, struct s_ip6 *ip_hdr, const unsigned char *payload)
 {
+	struct s_ip4	*ip;
 	struct s_tcp	*tcp;
-	struct in_addr	 ip4_addr_src, ip4_addr_dest;
+	struct in_addr	 ip4_addr;
 
-	unsigned char	*tcp_packet;
+	unsigned char	*packet;
 	unsigned char	 ent_save = 0;
 
 	struct stg_conn_tup *ent;
 	struct stg_conn_tup *ent_tmp;
 
-	unsigned short	 packet_size = htons(ip->len);
+	unsigned short	 data_size = htons(ip_hdr->len);
+	unsigned short	 packet_size = sizeof(struct s_ip4) + data_size;
 
 	/* define TCP header */
 	tcp = (struct s_tcp *) payload;
@@ -539,9 +612,10 @@ void process_tcp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned
 		/* save the connection */
 		ent = (struct stg_conn_tup *) malloc(sizeof(struct stg_conn_tup));
 		ent->port	= htons(tcp->port_src);
-		ent->addr_from	= ip->ip_src;
-		ent->mac	= eth->src;
+		ent->addr_from	= ip_hdr->ip_src;
+		ent->mac	= eth_hdr->src;
 		time(&ent->time);
+		ent->packet_num	= 0;
 		memset(&ent->addr_to, 0x0, sizeof(struct in_addr));
 		ent_save = 1;
 	}
@@ -553,36 +627,43 @@ void process_tcp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned
 	}
 
 	/* decide where to send this TCP */
-	ip4_addr_dest = ipaddr_6to4(ip->ip_dest);
-	printf("    Send to: %s\n", inet_ntoa(ip4_addr_dest));
+	ip4_addr = ipaddr_6to4(ip_hdr->ip_dest);
+	printf("    Send to: %s\n", inet_ntoa(ip4_addr));
 
 	/* create one big TCP packet */
-	tcp_packet = (unsigned char *) malloc(packet_size);
+	packet = (unsigned char *) malloc(packet_size);
 
-	if (tcp_packet == NULL) {
+	if (packet == NULL) {
 		fprintf(stderr, "Fatal error! Lack of free memory!\n");
 		exit(EXIT_FAILURE);
 	}
 
-	/* first set the checksum to zero */
-	tcp->checksum = 0x0;
-
-	/* copy data into the packet */
-	memcpy(tcp_packet, payload, packet_size);
+	/* assemble IPv4 header */
+	ip = (struct s_ip4 *) packet;
+	ip->ver_ihl		= 0x45;
+	ip->tos			= 0x0;
+	ip->pckt_len		= htons(packet_size);
+	ip->flags_offset	= htons(0x4000);
+	ip->id			= 0x0;
+	ip->ttl			= ip_hdr->hop_limit;
+	ip->proto		= IPPROTO_TCP;
+	ip->checksum		= 0x0;			/* it is computed automatically */
+	ip->ip_src		= ip4addr_wrapsix;
+	ip->ip_dest		= ip4_addr;
 
 	/* compute the checksum */
-	memcpy(&ip4_addr_src, dev_ip, sizeof(struct in_addr));
-	tcp->checksum = checksum_ipv4(ip4_addr_src, ip4_addr_dest, packet_size, IPPROTO_TCP, tcp_packet);
+	tcp->checksum = 0x0;
+	tcp->checksum = checksum_ipv4(ip4addr_wrapsix, ip4_addr, data_size, IPPROTO_TCP, (unsigned char *) payload);
 
-	/* copy this structure again - because of the checksum */
-	memcpy(tcp_packet, tcp, sizeof(struct s_tcp));
+	/* copy data into the packet */
+	memcpy(packet + sizeof(struct s_ip4), payload, data_size);
 
 	/* send */
-	send_there(ip4_addr_dest, ip->hop_limit, IPPROTO_TCP, tcp_packet, packet_size);
+	send_raw_ipv4(ip->ip_dest, packet, packet_size);
 
 	/* save the connection */
 	if (ent_save == 1) {
-		ent->addr_to = ip4_addr_dest;
+		ent->addr_to = ip4_addr;
 		jsw_rbinsert(stg_conn_tcp, ent);
 		printf("     Conn #: %d\n", jsw_rbsize(stg_conn_tcp));
 		/* the entry is not needed now and should be freed */
@@ -590,8 +671,8 @@ void process_tcp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned
 	}
 
 	/* free allocated memory */
-	free(tcp_packet);
-	tcp_packet = NULL;
+	free(packet);
+	packet = NULL;
 }
 
 void process_udp6(const struct s_ethernet *eth, struct s_ip6 *ip, const unsigned char *payload)
