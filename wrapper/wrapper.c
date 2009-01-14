@@ -13,9 +13,13 @@ jsw_rbtree_t *stg_conn_tcp;
 jsw_rbtree_t *stg_conn_udp;
 jsw_rbtree_t *stg_conn_icmp;
 
+/*
+ * 1: IPv4 address
+ * 2: IPv6 prefix
+ * 3: ethernet device
+ */
 int main(int argc, char **argv)
 {
-
 	char errbuf[PCAP_ERRBUF_SIZE];		/* error buffer */
 	pcap_t *handle;				/* packet capture handle */
 
@@ -30,10 +34,20 @@ int main(int argc, char **argv)
 
 	/* find a capture device */
 	dev = NULL;
-	dev = pcap_lookupdev(errbuf);
-	if (dev == NULL) {
-		fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
-		exit(EXIT_FAILURE);
+	printf("Args: %d\n", argc);
+	if (argc == 4) {
+		if ((dev = malloc(strlen(argv[3]))) == NULL) {
+			fprintf(stderr, "Fatal Error! Lack of free memory!\n");
+			exit(EXIT_FAILURE);
+		}
+		memcpy(dev, argv[3], sizeof(dev));
+	}
+	else {
+		dev = pcap_lookupdev(errbuf);
+		if (dev == NULL) {
+			fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	/* print capture info */
@@ -72,8 +86,10 @@ int main(int argc, char **argv)
 	dev_index = get_dev_index(dev);
 
 	/* set the WrapSix addresses */
-	inet_aton("10.0.0.111", &ip4addr_wrapsix);
-	inet_pton(AF_INET6, "fc00:1::", &ip6addr_wrapsix);
+	//inet_aton("10.0.0.111", &ip4addr_wrapsix);
+	//inet_pton(AF_INET6, "fc00:1::", &ip6addr_wrapsix);
+	inet_aton(argv[1], &ip4addr_wrapsix);
+	inet_pton(AF_INET6, argv[2], &ip6addr_wrapsix);
 
 	/* compile the filter expression */
 	if (pcap_compile(handle, &fp, filter_exp, 0, 0) == -1) {

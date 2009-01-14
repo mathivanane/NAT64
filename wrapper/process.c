@@ -52,24 +52,39 @@ void process_packet4(const struct s_ethernet *eth, const unsigned char *packet)
 	printf("       From: %s\n", inet_ntoa(ip->ip_src));
 	printf("         To: %s\n", inet_ntoa(ip->ip_dest));
 
-	/* check if this packet is ours */
-	if (memcmp(&ip4addr_wrapsix, &ip->ip_dest, 4)) {
-		printf("==> This packet is not ours! <==\n");
-		return;
-	}
-
 	/* determine protocol */
 	switch (ip->proto) {
 		case IPPROTO_TCP:
 			printf("   Protocol: TCP\n");
+
+			/* check if this packet is ours */
+			if (memcmp(&ip4addr_wrapsix, &ip->ip_dest, 4)) {
+				printf("==> This packet is not ours! <==\n");
+				return;
+			}
+
 			process_tcp4(eth, ip, payload, htons(ip->pckt_len) - header_length);
 			break;
 		case IPPROTO_UDP:
 			printf("   Protocol: UDP\n");
+
+			/* check if this packet is ours */
+			if (memcmp(dev_ip, &ip->ip_dest, 4)) {
+				printf("==> This packet is not ours! <==\n");
+				return;
+			}
+
 			process_udp4(eth, ip, payload, htons(ip->pckt_len) - header_length);
 			break;
 		case IPPROTO_ICMP:
 			printf("   Protocol: ICMP\n");
+
+			/* check if this packet is ours */
+			if (memcmp(dev_ip, &ip->ip_dest, 4)) {
+				printf("==> This packet is not ours! <==\n");
+				return;
+			}
+
 			process_icmp4(eth, ip, payload, htons(ip->pckt_len) - header_length);
 			break;
 		default:
@@ -117,11 +132,11 @@ void process_tcp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const 
 
 	/* check if this packet is from wrapped connection */
 	if (ent == NULL) {
-		fprintf(stderr, "Error: data not found\n");
+		printf("Error: data not found\n");
 		return;
 	}
 	else if (memcmp(&ent->addr_to, &ip_hdr->ip_src, sizeof(struct in_addr))) {
-		fprintf(stderr, "Error: data not appropriate\n");
+		printf("Error: data not appropriate\n");
 		printf("     Ent-to: %s\n", inet_ntoa(ent->addr_to));
 		printf("    IP-from: %s\n", inet_ntoa(ip_hdr->ip_src));
 		return;
@@ -280,11 +295,11 @@ void process_udp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const 
 
 	/* check if this packet is from wrapped connection */
 	if (ent == NULL) {
-		fprintf(stderr, "Error: data not found\n");
+		printf("Error: data not found\n");
 		return;
 	}
 	else if (memcmp(&ent->addr_to, &ip_hdr->ip_src, sizeof(struct in_addr))) {
-		fprintf(stderr, "Error: data not appropriate\n");
+		printf("Error: data not appropriate\n");
 		printf("     Ent-to: %s\n", inet_ntoa(ent->addr_to));
 		printf("    IP-from: %s\n", inet_ntoa(ip_hdr->ip_src));
 		return;
@@ -387,11 +402,11 @@ void process_icmp4(const struct s_ethernet *eth_hdr, struct s_ip4 *ip_hdr, const
 
 			/* check if this packet is from wrapped connection */
 			if (ent == NULL) {
-				fprintf(stderr, "Error: data not found\n");
+				printf("Error: data not found\n");
 				return;
 			}
 			else if (memcmp(&ent->addr_to, &ip_hdr->ip_src, sizeof(struct in_addr))) {
-				fprintf(stderr, "Error: data not appropriate\n");
+				printf("Error: data not appropriate\n");
 				printf("     Ent-to: %s\n", inet_ntoa(ent->addr_to));
 				printf("    IP-from: %s\n", inet_ntoa(ip_hdr->ip_src));
 				return;

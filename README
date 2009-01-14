@@ -1,21 +1,47 @@
 #####
 ## WrapSix readme
 ####
-# Author: Michal Zima, 2008
+# Author: Michal Zima, 2008-2009
 # E-mail: xhire@tuxportal.cz
 #####
 
 == About ==
-WrapSix is a revolutionary piece of software that make possible to reach IPv4-only servers from IPv6-only networks. It stands as a wrapper of faked IPv6 addresses to real IPv4 addresses.
+WrapSix is a revolutionary piece of software that makes possible to reach IPv4-only servers from IPv6-only networks. It stands as a wrapper of faked IPv6 addresses to real IPv4 addresses.
 
 == Requirements ==
-WrapSix is very simple to use. You only need:
-* GNU/Linux system
-* Ruby (I've tested version 1.8.6)
+* GNU/Linux system with IPv6 support (best with 2.6.12 or newer; tested with 2.6.11 (OK) and 2.6.17 (OK))
+* C compiler and such things (just to build binaries of course)
+* libpcap (tested with version 0.8.3)
+* Ruby (tested with version 1.8.6)
+
+== Building ==
+If you satisfied all requirements, let's run build script: './build.sh'.
 
 == Configuration ==
+Look at configuration file conf/wrapsix.conf.
+
+In section of the DNS resolver you have to set its IPv6 address (already assigned to the network interface of the server) and IPv4 address of already existing DNS resolver.
+
+In section of the wrapper you have to set some *unused* IPv6 prefix (/96) and *unused* IPv4 address that is not set anywhere. WrapSix manage them itself. If autodetection of network device fails, set it as well, e.g. to 'eth0'.
+
+The IPv6 prefix can be globaly routable - it is up to you to set the firewall appropriately.
+
+If you don't need debug mode, it is recommended to disable it.
+
+All configuration options can be passed on as command line arguments - run './wrapsix.rb --help' for more details. Command line arguments have higher priority and override those in configuration file.
+
+== Instalation ==
+WrapSix is not stable yet - it is just experimental version. So it is not supposed to be installed in system (=> there is no installation script), but you can install it by hand if you want. The best location would be in /opt/wrapsix/ I think...
 
 == Running ==
+Run WrapSix with wrapsix.rb. E.g. './wrapsix.rb'. Notice: you need root privileges.
+
+It is recommended to run WrapSix on its own dedicated machine.
+
+== Clients ==
+On client station set some routable IPv6 address (generally from similar prefix as WrapSix has, but not the same!) and DNS server to the address that you set in WrapSix. First test the DNS resolving (with dig, ping (as it does resolving too) or whatsoever) and then try pinging such destination that doesn't have native IPv6 connectivity (e.g. 'ping6 wrapsix.tuxportal.cz' (yes, this site doesn't have IPv6 connectivity yet).
+
+Note: you have to have IPv6 connectivity (native or even a tunnel is acceptable)!
 
 == Getting help ==
 You can visit official WrapSix IRC channel #wrapsix on server irc.tuxportal.cz. Thank you for feedback.
