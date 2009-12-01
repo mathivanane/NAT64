@@ -1,0 +1,7 @@
+AC_INIT([WrapSix], [0.1.99.0], [xhire@mujmalysvet.cz])
+AM_INIT_AUTOMAKE([-Wall -Werror])
+AC_PROG_CC
+AC_OUTPUT([
+	Makefile
+	src/Makefile
+])
