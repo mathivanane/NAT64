@@ -5,6 +5,7 @@ configure
 depcomp
 install-sh
 missing
+config.cache
 config.log
 config.status
 src/.deps/
@@ -13,3 +14,10 @@ src/Makefile.in
 Makefile
 src/Makefile
 INSTALL
+
+# build
+*.o
+wrapsix-dnsproxy
+
+# debug
+core
