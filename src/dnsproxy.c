@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2009  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2010  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -46,6 +46,7 @@ struct s_dns_answer {
 #define IP		"::2"
 #define RESOLVER	"::1"
 #define PORT		53
+#define PREFIX		"::"
 
 unsigned short id = 0;
 
@@ -283,9 +284,17 @@ int main(int argc, char **argv)
 	struct sockaddr_in6 sock_addr,
 			    client_sock_addr;
 
+	int resolver_sock;
+	struct sockaddr_in6 resolver_sock_addr;
+
 	struct s_dns_header *dns, *dns_answer;
 	unsigned short qtype, qclass;
 	struct s_dns_answer *answers;
+
+	struct in6_addr ipv6_prefix;
+
+	/* initialization */
+	inet_pton(AF_INET6, PREFIX, &ipv6_prefix);
 
 	/* create the socket */
 	if ((sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
@@ -304,69 +313,160 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	/* fetch a request */
-	udp_receive(&sock, &client_sock_addr, (char *) &buffer, &length);
+	for (;;) {
+		/* fetch a request */
+		udp_receive(&sock, &client_sock_addr, (char *) &buffer, &length);
 
-	/* process the request */
-	dns = (struct s_dns_header *) &buffer;
-	/* TODO: there could be more than one question */
-	offset = sizeof(struct s_dns_header);
-	while (buffer[offset] != 0x0) {
-		offset += buffer[offset] + 1;
-	}
-	memcpy(&qtype, &buffer[offset + 1], 2);
-	memcpy(&qclass, &buffer[offset + 3], 2);
-	qtype = htons(qtype);
-	qclass = htons(qclass);
+		/* process the request */
+		dns = (struct s_dns_header *) &buffer;
+		/* TODO: there could be more than one question */
+		offset = sizeof(struct s_dns_header);
+		while (buffer[offset] != 0x0) {
+			offset += buffer[offset] + 1;
+		}
+		memcpy(&qtype, &buffer[offset + 1], 2);
+		memcpy(&qclass, &buffer[offset + 3], 2);
+		qtype = htons(qtype);
+		qclass = htons(qclass);
 
-	/* this is AAAA request */
-	if (qclass == 0x1 && qtype == 0x1c) {
-		answers = NULL;
-		/* first look up if some AAAA exists */
-		if (lookup(0x1c, &buffer[sizeof(struct s_dns_header)], &answers, &answer_count) == 0) {
-			/* send back an answer */
-			dns_answer = (struct s_dns_header *) &buffer_answer;
-			dns_answer->id		= dns->id;
-			dns_answer->flags	= htons(0x8180);
-			dns_answer->question	= htons(1);
-			dns_answer->answer	= htons(answer_count);
-			dns_answer->auth	= 0;
-			dns_answer->add		= 0;
+		/* this is AAAA request */
+		if (qclass == 0x1 && qtype == 0x1c) {
+			answers = NULL;
+			/* first look up if some AAAA exists */
+			if (lookup(0x1c, &buffer[sizeof(struct s_dns_header)], &answers, &answer_count) == 0) {
+				/* send back an answer */
+				dns_answer = (struct s_dns_header *) &buffer_answer;
+				dns_answer->id		= dns->id;
+				dns_answer->flags	= htons(0x8180);
+				dns_answer->question	= htons(1);
+				dns_answer->answer	= htons(answer_count);
+				dns_answer->auth	= 0;
+				dns_answer->add		= 0;
 
-			/* copy question section */
-			i = offset - sizeof(struct s_dns_header) + 5;
-			memcpy(&buffer_answer[sizeof(struct s_dns_header)], &buffer[sizeof(struct s_dns_header)], i);
+				/* copy question section */
+				i = offset - sizeof(struct s_dns_header) + 5;
+				memcpy(&buffer_answer[sizeof(struct s_dns_header)], &buffer[sizeof(struct s_dns_header)], i);
 
-			/* construct answer section */
-			i = offset + 5;
-			for (j = 0; j < answer_count; j++) {
-				/* copy fqdn */
-				memcpy(&buffer_answer[i], answers[j].fqdn, answers[j].dnlength);
-				i += answers[j].dnlength;
+				/* construct answer section */
+				i = offset + 5;
+				for (j = 0; j < answer_count; j++) {
+					/* copy fqdn */
+					memcpy(&buffer_answer[i], answers[j].fqdn, answers[j].dnlength);
+					i += answers[j].dnlength;
 
-				/* copy type, class and ttl */
-				memcpy(&buffer_answer[i], &(answers[j].type), 2 * sizeof(unsigned short) + sizeof(unsigned int));
-				i += 2 * sizeof(unsigned short) + sizeof(unsigned int);
+					/* copy type, class and ttl */
+					memcpy(&buffer_answer[i], &(answers[j].type), 2 * sizeof(unsigned short) + sizeof(unsigned int));
+					i += 2 * sizeof(unsigned short) + sizeof(unsigned int);
 
-				/* copy rdlength */
-				k = htons(answers[j].rdlength);
-				memcpy(&buffer_answer[i], &k, sizeof(unsigned short));
-				i += sizeof(unsigned short);
+					/* copy rdlength */
+					k = htons(answers[j].rdlength);
+					memcpy(&buffer_answer[i], &k, sizeof(unsigned short));
+					i += sizeof(unsigned short);
 
-				/* copy rdata */
-				memcpy(&buffer_answer[i], answers[j].rdata, answers[j].rdlength);
-				i += answers[j].rdlength;
+					/* copy rdata */
+					memcpy(&buffer_answer[i], answers[j].rdata, answers[j].rdlength);
+					i += answers[j].rdlength;
+
+					/* memory clean-up */
+					free(answers[j].fqdn);
+					free(answers[j].rdata);
+				}
+
+				/* send it */
+				udp_send(&sock, &client_sock_addr, (char *) &buffer_answer, i);
 
 				/* memory clean-up */
-				free(answers[j].fqdn);
-				free(answers[j].rdata);
+				free(answers);
+			/* second look up if some A exists & transform it */
+			} else if (lookup(0x1, &buffer[sizeof(struct s_dns_header)], &answers, &answer_count) == 0) {
+				/* send back an answer */
+				dns_answer = (struct s_dns_header *) &buffer_answer;
+				dns_answer->id		= dns->id;
+				dns_answer->flags	= htons(0x8180);
+				dns_answer->question	= htons(1);
+				dns_answer->answer	= htons(answer_count);
+				dns_answer->auth	= 0;
+				dns_answer->add		= 0;
+
+				/* copy question section */
+				i = offset - sizeof(struct s_dns_header) + 5;
+				memcpy(&buffer_answer[sizeof(struct s_dns_header)], &buffer[sizeof(struct s_dns_header)], i);
+
+				/* construct answer section */
+				i = offset + 5;
+				for (j = 0; j < answer_count; j++) {
+					/* copy fqdn */
+					memcpy(&buffer_answer[i], answers[j].fqdn, answers[j].dnlength);
+					i += answers[j].dnlength;
+
+					/* set type */
+					k = htons(0x1c);
+					memcpy(&buffer_answer[i], &k, sizeof(unsigned short));
+					i += sizeof(unsigned short);
+
+					/* copy class and ttl */
+					memcpy(&buffer_answer[i], &(answers[j].class), sizeof(unsigned short) + sizeof(unsigned int));
+					i += sizeof(unsigned short) + sizeof(unsigned int);
+
+					/* set rdlength */
+					k = htons(sizeof(ipv6_prefix));
+					memcpy(&buffer_answer[i], &k, sizeof(unsigned short));
+					i += sizeof(unsigned short);
+
+					/* copy IPv6 prefix */
+					memcpy(&buffer_answer[i], &ipv6_prefix, sizeof(ipv6_prefix) - answers[j].rdlength);
+					i += sizeof(ipv6_prefix) - answers[j].rdlength;
+
+					/* copy IPv4 address */
+					memcpy(&buffer_answer[i], answers[j].rdata, answers[j].rdlength);
+					i += answers[j].rdlength;
+
+					/* memory clean-up */
+					free(answers[j].fqdn);
+					free(answers[j].rdata);
+				}
+
+				/* send it */
+				udp_send(&sock, &client_sock_addr, (char *) &buffer_answer, i);
+
+				/* memory clean-up */
+				free(answers);
+			/* third say we have no clue about the fqdn */
+			} else {
+				/* send back an answer */
+				dns_answer = (struct s_dns_header *) &buffer_answer;
+				dns_answer->id		= dns->id;
+				dns_answer->flags	= htons(0x8183);
+				dns_answer->question	= htons(1);
+				dns_answer->answer	= 0;
+				dns_answer->auth	= 0;
+				dns_answer->add		= 0;
+
+				/* copy question section */
+				i = offset - sizeof(struct s_dns_header) + 5;
+				memcpy(&buffer_answer[sizeof(struct s_dns_header)], &buffer[sizeof(struct s_dns_header)], i);
+				i += sizeof(struct s_dns_header);
+
+				/* send it */
+				udp_send(&sock, &client_sock_addr, (char *) &buffer_answer, i);
 			}
+		/* this is other than AAAA request -> just proxy it */
+		} else {
+			/* create a connection socket */
+			resolver_connect(&resolver_sock, &resolver_sock_addr);
 
-			/* send it */
-			udp_send(&sock, &client_sock_addr, (char *) &buffer_answer, i);
+			/* send the request */
+			udp_send(&resolver_sock, &resolver_sock_addr, (char *) &buffer, length);
 
-			/* memory clean-up */
-			free(answers);
+			/* fetch the answer */
+			udp_receive(&resolver_sock, &resolver_sock_addr, (char *) &buffer, (int *) &length);
+
+			/* close the socket */
+			close(resolver_sock);
+
+
+			/* forward the answer to the client */
+			udp_send(&sock, &client_sock_addr, (char *) &buffer, length);
 		}
 	}
 
