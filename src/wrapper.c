@@ -28,9 +28,14 @@
 #include <unistd.h>		/* close */
 
 #include "wrapper.h"
+#include "ipv6.h"
 
 #define INTERFACE	"eth0"
 #define BUFFER_SIZE	65536
+#define PREFIX		"::"
+
+struct s_ipv6_addr	ndp_multicast_addr;
+struct s_ipv6_addr	wrapsix_ipv6_prefix;
 
 int process(char *packet);
 
@@ -67,6 +72,13 @@ int main(int argc, char **argv)
 		fprintf(stderr, "[Error] Unable to set the promiscuous mode on the interface\n");
 		return 1;
 	}
+
+	/* some preparations */
+	/* compute binary IPv6 address of NDP multicast */
+	inet_pton(AF_INET6, "ff02::1:ff00:0", &ndp_multicast_addr);
+
+	/* compute binary IPv6 address of WrapSix prefix */
+	inet_pton(AF_INET6, PREFIX, &wrapsix_ipv6_prefix);
 
 	/* sniff! :c) */
 	for (;;) {
@@ -107,7 +119,7 @@ int process(char *packet)
 			return -1;
 		case ETHERTYPE_IPV6:
 			printf("[Debug] HW Protocol: IPv6\n");
-			return -1;
+			return ipv6(eth, payload);
 		case ETHERTYPE_ARP:
 			printf("[Debug] HW Protocol: ARP\n");
 			return -1;

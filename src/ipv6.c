@@ -16,27 +16,26 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef WRAPPER_H
-#define WRAPPER_H
+#include <stdio.h>
+#include <string.h>		/* memcpy */
 
-/* MAC address structure */
-struct s_mac_addr {
-	unsigned char		a;
-	unsigned char		b;
-	unsigned char		c;
-	unsigned char		d;
-	unsigned char		e;
-	unsigned char		f;
-} __attribute__ ((__packed__));
+#include "wrapper.h"
+#include "ipv6.h"
 
-/* Ethernet header structure */
-struct s_ethernet {
-	struct s_mac_addr	dest;	/* 48 b; destination host (MAC) address */
-	struct s_mac_addr	src;	/* 48 b; source host (MAC) address */
-	unsigned short		type;	/* 16 b; IP/ARP/RARP/... */
-} __attribute__ ((__packed__));
+int ipv6(struct s_ethernet *eth, char *packet)
+{
+	struct s_ipv6	*ip;
+	char		*payload;
 
-extern struct s_ipv6_addr	ndp_multicast_addr;
-extern struct s_ipv6_addr	wrapsix_ipv6_prefix;
+	/* load data into structures */
+	ip = (struct s_ipv6*) packet;
+	payload = packet + sizeof(struct s_ipv6);
 
-#endif /* WRAPPER_H */
+	if (memcmp(&wrapsix_ipv6_prefix, &ip->ip_dest, 12) != 0 &&
+	    memcmp(&ndp_multicast_addr,  &ip->ip_dest, 13) != 0) {
+		printf("[Debug] This is unfamiliar packet\n");
+		return 1;
+	}
+
+	return 0;
+}

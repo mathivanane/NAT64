@@ -16,27 +16,26 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef WRAPPER_H
-#define WRAPPER_H
+#ifndef IPV6_H
+#define IPV6_H
 
-/* MAC address structure */
-struct s_mac_addr {
-	unsigned char		a;
-	unsigned char		b;
-	unsigned char		c;
-	unsigned char		d;
-	unsigned char		e;
-	unsigned char		f;
+/* IPv6 address structure */
+struct s_ipv6_addr {
+	unsigned char		addr[16];
 } __attribute__ ((__packed__));
 
-/* Ethernet header structure */
-struct s_ethernet {
-	struct s_mac_addr	dest;	/* 48 b; destination host (MAC) address */
-	struct s_mac_addr	src;	/* 48 b; source host (MAC) address */
-	unsigned short		type;	/* 16 b; IP/ARP/RARP/... */
+/* IPv6 header structure */
+struct s_ipv6 {
+	unsigned char		ver;            /*   8 b; version */
+	unsigned char		traffic_class;  /*   8 b; traffic class */
+	unsigned short		flow_label;     /*  16 b; flow label (qos) */
+	unsigned short		len;            /*  16 b; payload length */
+	unsigned char		next_header;    /*   8 b; next header */
+	unsigned char		hop_limit;      /*   8 b; hop limit (replaces ttl) */
+	struct s_ipv6_addr	ip_src;         /* 128 b; source address */
+	struct s_ipv6_addr	ip_dest;        /* 128 b; destination address */
 } __attribute__ ((__packed__));
 
-extern struct s_ipv6_addr	ndp_multicast_addr;
-extern struct s_ipv6_addr	wrapsix_ipv6_prefix;
+int ipv6(struct s_ethernet *eth, char *payload);
 
-#endif /* WRAPPER_H */
+#endif /* IPV6_H */
