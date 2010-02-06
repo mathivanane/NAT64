@@ -18,6 +18,7 @@ INSTALL
 # build
 *.o
 wrapsix-dnsproxy
+wrapsix-wrapper
 
 # debug
 core

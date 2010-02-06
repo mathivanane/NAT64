@@ -1,2 +1,3 @@
-sbin_PROGRAMS = wrapsix-dnsproxy
+sbin_PROGRAMS = wrapsix-dnsproxy wrapsix-wrapper
 wrapsix_dnsproxy_SOURCES = dnsproxy.c
+wrapsix_wrapper_SOURCES = wrapper.c wrapper.h
