@@ -27,8 +27,10 @@
 #include <sys/ioctl.h>		/* ioctl, SIOCGIFINDEX */
 #include <unistd.h>		/* close */
 
-#include "wrapper.h"
+#include "ipv4.h"
 #include "ipv6.h"
+#include "nat.h"
+#include "wrapper.h"
 
 #define INTERFACE	"eth0"
 #define BUFFER_SIZE	65536
@@ -80,6 +82,9 @@ int main(int argc, char **argv)
 	/* compute binary IPv6 address of WrapSix prefix */
 	inet_pton(AF_INET6, PREFIX, &wrapsix_ipv6_prefix);
 
+	/* initiate NAT tables */
+	nat_init();
+
 	/* sniff! :c) */
 	for (;;) {
 		addr_size = sizeof(addr);
@@ -92,6 +97,9 @@ int main(int argc, char **argv)
 	}
 
 	/* clean-up */
+	/* empty NAT tables */
+	nat_quit();
+
 	/* unset the promiscuous mode */
 	if (setsockopt(sniff_sock, SOL_PACKET, PACKET_DROP_MEMBERSHIP, (char *) &pmr, sizeof(pmr)) == -1) {
 		fprintf(stderr, "[Error] Unable to unset the promiscuous mode on the interface\n");
@@ -128,4 +136,23 @@ int process(char *packet)
 			       htons(eth->type), htons(eth->type));
 			return 1;
 	}
+}
+
+struct s_ipv4_addr ipv6_to_ipv4(struct s_ipv6_addr *ipv6_addr)
+{
+	struct s_ipv4_addr ipv4_addr;
+
+	memcpy(&ipv4_addr, &ipv6_addr + 12, 4);
+
+	return ipv4_addr;
+}
+
+struct s_ipv6_addr ipv4_to_ipv6(struct s_ipv4_addr *ipv4_addr)
+{
+	struct s_ipv6_addr ipv6_addr;
+
+	ipv6_addr = wrapsix_ipv6_prefix;
+	memcpy(&ipv6_addr + 12, &ipv4_addr, 4);
+
+	return ipv6_addr;
 }

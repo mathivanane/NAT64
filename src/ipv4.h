@@ -16,30 +16,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef WRAPPER_H
-#define WRAPPER_H
+#ifndef IPV4_H
+#define IPV4_H
 
-/* MAC address structure */
-struct s_mac_addr {
-	unsigned char		a;
-	unsigned char		b;
-	unsigned char		c;
-	unsigned char		d;
-	unsigned char		e;
-	unsigned char		f;
+/* IPv4 address structure */
+struct s_ipv4_addr {
+	unsigned char		addr[4];
 } __attribute__ ((__packed__));
 
-/* Ethernet header structure */
-struct s_ethernet {
-	struct s_mac_addr	dest;	/* 48 b; destination host (MAC) address */
-	struct s_mac_addr	src;	/* 48 b; source host (MAC) address */
-	unsigned short		type;	/* 16 b; IP/ARP/RARP/... */
-} __attribute__ ((__packed__));
-
-extern struct s_ipv6_addr	ndp_multicast_addr;
-extern struct s_ipv6_addr	wrapsix_ipv6_prefix;
-
-struct s_ipv4_addr ipv6_to_ipv4(struct s_ipv6_addr *ipv6_addr);
-struct s_ipv6_addr ipv4_to_ipv6(struct s_ipv4_addr *ipv4_addr);
-
-#endif /* WRAPPER_H */
+#endif /* IPV4_H */
