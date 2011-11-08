@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2010  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,10 +23,13 @@
 #include <netinet/in.h>		/* htons */
 #include <net/ethernet.h>	/* ETHERTYPE_* */
 #include <stdio.h>
+#include <stdlib.h>		/* srand */
 #include <string.h>		/* strncpy */
 #include <sys/ioctl.h>		/* ioctl, SIOCGIFINDEX */
+#include <time.h>		/* time */
 #include <unistd.h>		/* close */
 
+#include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
 #include "nat.h"
@@ -85,6 +88,9 @@ int main(int argc, char **argv)
 	/* initiate NAT tables */
 	nat_init();
 
+	/* initiate random numbers generator */
+	srand((unsigned int) time(NULL));
+
 	/* sniff! :c) */
 	for (;;) {
 		addr_size = sizeof(addr);
@@ -138,21 +144,13 @@ int process(char *packet)
 	}
 }
 
-struct s_ipv4_addr ipv6_to_ipv4(struct s_ipv6_addr *ipv6_addr)
+void ipv6_to_ipv4(struct s_ipv6_addr *ipv6_addr, struct s_ipv4_addr *ipv4_addr)
 {
-	struct s_ipv4_addr ipv4_addr;
-
-	memcpy(&ipv4_addr, &ipv6_addr + 12, 4);
-
-	return ipv4_addr;
+	memcpy(ipv4_addr, &ipv6_addr + 12, 4);
 }
 
-struct s_ipv6_addr ipv4_to_ipv6(struct s_ipv4_addr *ipv4_addr)
+void ipv4_to_ipv6(struct s_ipv4_addr *ipv4_addr, struct s_ipv6_addr *ipv6_addr)
 {
-	struct s_ipv6_addr ipv6_addr;
-
-	ipv6_addr = wrapsix_ipv6_prefix;
-	memcpy(&ipv6_addr + 12, &ipv4_addr, 4);
-
-	return ipv6_addr;
+	*ipv6_addr = wrapsix_ipv6_prefix;
+	memcpy(ipv6_addr + 12, &ipv4_addr, 4);
 }

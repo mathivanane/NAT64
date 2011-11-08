@@ -16,28 +16,19 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IPV6_H
-#define IPV6_H
+#ifndef ETHERNET_H
+#define ETHERNET_H
 
-#include "ethernet.h"		/* s_ethernet */
-
-/* IPv6 address structure */
-struct s_ipv6_addr {
-	unsigned char		addr[16];
+/* MAC address structure */
+struct s_mac_addr {
+	unsigned char		addr[6];
 } __attribute__ ((__packed__));
 
-/* IPv6 header structure */
-struct s_ipv6 {
-	unsigned char		ver;            /*   8 b; version */
-	unsigned char		traffic_class;  /*   8 b; traffic class */
-	unsigned short		flow_label;     /*  16 b; flow label (qos) */
-	unsigned short		len;            /*  16 b; payload length */
-	unsigned char		next_header;    /*   8 b; next header */
-	unsigned char		hop_limit;      /*   8 b; hop limit (replaces ttl) */
-	struct s_ipv6_addr	ip_src;         /* 128 b; source address */
-	struct s_ipv6_addr	ip_dest;        /* 128 b; destination address */
+/* Ethernet header structure */
+struct s_ethernet {
+	struct s_mac_addr	dest;	/* 48 b; destination host (MAC) address */
+	struct s_mac_addr	src;	/* 48 b; source host (MAC) address */
+	unsigned short		type;	/* 16 b; IP/ARP/RARP/... */
 } __attribute__ ((__packed__));
 
-int ipv6(struct s_ethernet *eth, char *packet);
-
-#endif /* IPV6_H */
+#endif /* ETHERNET_H */

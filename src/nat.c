@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2010  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -89,7 +89,6 @@ struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 		result->last_packet = time(NULL);
 
 		/* generate some outgoing port */
-		srand((unsigned int) time(NULL));
 		do {
 			/* return port from range 1024 - 65535 */
 			connection->ipv4_port_src = (rand() % 64511) + 1024;
