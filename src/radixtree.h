@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2010  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -16,6 +16,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef RADIXTREE_H
+#define RADIXTREE_H
+
 #define CHUNK_SIZE	6
 #define ARRAY_SIZE	64	/* 2 ^ CHUNK_SIZE */
 
@@ -24,7 +27,7 @@ typedef struct radixtree {
 	unsigned int count;
 } radixtree_t;
 
-radixtree_t *radixtree_create();
+radixtree_t *radixtree_create(void);
 void radixtree_destroy(radixtree_t *t, unsigned char depth);
 void radixtree_insert(radixtree_t *root,
 		      unsigned char *(chunker)(void *data, unsigned char *count),
@@ -32,8 +35,10 @@ void radixtree_insert(radixtree_t *root,
 void radixtree_delete(radixtree_t *root,
 		      unsigned char *(chunker)(void *data, unsigned char *count),
 		      void *data);
-radixtree_t *radixtree_lookup(radixtree_t *root,
+void *radixtree_lookup(radixtree_t *root,
 		      unsigned char *(chunker)(void *data, unsigned char *count),
 		      void *data);
-unsigned char *radixtree_outgoing_chunker(void *data, unsigned char *count);
-unsigned char *radixtree_incoming_chunker(void *data, unsigned char *count);
+unsigned char *radixtree_ipv6_chunker(void *data, unsigned char *count);
+unsigned char *radixtree_ipv4_chunker(void *data, unsigned char *count);
+
+#endif /* RADIXTREE_H */

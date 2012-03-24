@@ -20,7 +20,11 @@
 #include <stdlib.h>		/* malloc */
 #include <time.h>		/* time */
 
+#include "ipv4.h"
+#include "ipv6.h"
+#include "nat.h"
 #include "radixtree.h"
+#include "wrapper.h"
 
 struct s_radixtree_nat6 {
 	struct s_ipv6_addr	ipv6;
@@ -39,7 +43,7 @@ struct s_radixtree_nat4 {
 radixtree_t *nat6_tcp, *nat6_udp, *nat6_icmp,
 	    *nat4_tcp, *nat4_udp, *nat4_icmp;
 
-void nat_init()
+void nat_init(void)
 {
 	nat6_tcp  = radixtree_create();
 	nat6_udp  = radixtree_create();
@@ -50,33 +54,36 @@ void nat_init()
 	nat4_icmp = radixtree_create();
 }
 
-void nat_quit()
+void nat_quit(void)
 {
-	/* 128 + 16 + 32 + 16 = 198 / 6 = 33 */
-	radixtree_destroy(&nat6_tcp,  33);
-	radixtree_destroy(&nat6_udp,  33);
-	radixtree_destroy(&nat6_icmp, 33);
+	/* 128 + 16 + 32 + 16 = 192 / 6 = 32 */
+	radixtree_destroy(nat6_tcp,  32);
+	radixtree_destroy(nat6_udp,  32);
+	radixtree_destroy(nat6_icmp, 32);
 
 	/* 32 + 16 + 16 + 8 = 72 / 6 = 12 */
-	radixtree_destroy(&nat4_tcp,  12);
-	radixtree_destroy(&nat4_udp,  12);
-	radixtree_destroy(&nat4_icmp, 12);
+	radixtree_destroy(nat4_tcp,  12);
+	radixtree_destroy(nat4_udp,  12);
+	radixtree_destroy(nat4_icmp, 12);
 }
 
 struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 		      struct s_ipv6_addr ipv6_src, struct s_ipv6_addr ipv6_dst,
 		      unsigned short	 port_src, unsigned short     port_dst)
 {
-	radixtree_t *result, *connection;
+	struct s_nat *result, *connection;
+
+	struct s_radixtree_nat4 radixsearch4;
+	struct s_radixtree_nat6 radixsearch6;
 
 	/* create structure to search in the tree */
-	struct s_radixtree_nat6 radixsearch6;
 	radixsearch6.ipv6 = ipv6_src;
-	radixsearch6.ipv4 = ipv6_to_ipv4(&ipv6_dst);
+	ipv6_to_ipv4(&ipv6_dst, &radixsearch6.ipv4);
 	radixsearch6.port_src = port_src;
 	radixsearch6.port_dst = port_dst;
 
-	if ((result = radixtree_lookup(nat_proto6, radixtree_outgoing_chunker, &radixsearch6)) == NULL) {
+	if ((result = (struct s_nat *) radixtree_lookup(nat_proto6, radixtree_ipv6_chunker, &radixsearch6)) == NULL) {
+		/* if no connection is found, let's create one */
 		if ((connection = (struct s_nat *) malloc(sizeof(struct s_nat))) == NULL) {
 			fprintf(stderr, "[Error] Lack of free memory\n");
 			return NULL;
@@ -86,48 +93,50 @@ struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 		connection->ipv4 = radixsearch6.ipv4;
 		connection->ipv6_port_src = port_src;
 		connection->ipv4_port_dst = port_dst;
-		result->last_packet = time(NULL);
+		connection->last_packet = time(NULL);
 
 		/* generate some outgoing port */
 		do {
 			/* return port from range 1024 - 65535 */
 			connection->ipv4_port_src = (rand() % 64511) + 1024;
 
-			result = radixtree_lookup(nat_proto6, radixtree_outgoing_chunker, &radixsearch6);
+			result = radixtree_lookup(nat_proto6, radixtree_ipv6_chunker, &radixsearch6);
 		} while (result != NULL);
 
 		/* save this connection to the NAT table (to *both* of them) */
-		struct s_radixtree_nat4 radixsearch4;
 		radixsearch4.addr = radixsearch6.ipv4;
 		radixsearch4.port_src = port_dst;
 		radixsearch4.port_dst = connection->ipv4_port_src;
 		radixsearch4.zeros = 0x0;
 
-		radixtree_insert(nat_proto6, radixtree_outgoing_chunker, &radixsearch6, connection);
-		radixtree_insert(nat_proto4, radixtree_incoming_chunker, &radixsearch4, connection);
+		radixtree_insert(nat_proto6, radixtree_ipv6_chunker, &radixsearch6, connection);
+		radixtree_insert(nat_proto4, radixtree_ipv4_chunker, &radixsearch4, connection);
 
 		return connection;
 	} else {
+		/* when connection is found, refresh it and return */
 		result->last_packet = time(NULL);
 		return result;
 	}
 }
 
-struct s_nat *nat_in(radixtree_t *nat_proto, struct s_ipv4_addr ipv4_src,
+struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
 		     unsigned short port_src, unsigned short port_dst)
 {
-	radixtree_t *result;
+	struct s_nat *result;
 
 	/* create structure to search in the tree */
-	struct s_radixtree_nat4 radixsearch;
-	radixsearch.addr = ipv4_src;
-	radixsearch.port_src = port_src;
-	radixsearch.port_dst = port_dst;
-	radixsearch.zeros = 0x0;
+	struct s_radixtree_nat4 radixsearch4;
+	radixsearch4.addr = ipv4_src;
+	radixsearch4.port_src = port_src;
+	radixsearch4.port_dst = port_dst;
+	radixsearch4.zeros = 0x0;
 
-	if ((result = radixtree_lookup(nat_proto, radixtree_outgoing_chunker, &radixsearch)) == NULL) {
+	if ((result = (struct s_nat *) radixtree_lookup(nat_proto4, radixtree_ipv4_chunker, &radixsearch4)) == NULL) {
+		/* when connection is not found, drop the packet */
 		return NULL;
 	} else {
+		/* when connection is found, refresh it and return */
 		result->last_packet = time(NULL);
 		return result;
 	}

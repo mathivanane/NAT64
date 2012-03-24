@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2010  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,11 +21,13 @@
 
 #include <time.h>		/* time_t */
 
+#include "ethernet.h"		/* s_mac_addr */
 #include "ipv4.h"		/* s_ipv4_addr */
 #include "ipv6.h"		/* s_ipv6_addr */
 #include "radixtree.h"		/* radixtree_t */
 
 struct s_nat {
+	struct s_mac_addr	mac;
 	struct s_ipv6_addr	ipv6;
 	struct s_ipv4_addr	ipv4;
 	unsigned short		ipv6_port_src;
@@ -37,13 +39,13 @@ struct s_nat {
 extern radixtree_t *nat6_tcp, *nat6_udp, *nat6_icmp,
 		   *nat4_tcp, *nat4_udp, *nat4_icmp;
 
-void nat_init();
-void nat_quit();
+void nat_init(void);
+void nat_quit(void);
 
 struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 		      struct s_ipv6_addr ipv6_src, struct s_ipv6_addr ipv6_dst,
 		      unsigned short	 port_src, unsigned short     port_dst);
-struct s_nat *nat_in(radixtree_t *nat_proto, struct s_ipv4_addr ipv4_src,
+struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
 		     unsigned short port_src, unsigned short port_dst);
 
 #endif /* NAT_H */

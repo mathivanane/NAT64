@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2010  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -16,7 +16,13 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-radixtree_t *radixtree_create()
+#include <stdio.h>		/* fprintf */
+#include <stdlib.h>		/* free, malloc */
+#include <string.h>		/* memcpy */
+
+#include "radixtree.h"
+
+radixtree_t *radixtree_create(void)
 {
 	radixtree_t *radixtree;
 
@@ -61,7 +67,7 @@ void radixtree_insert(radixtree_t *root,
 	for (i = 0; i < chunk_count; i++) {
 		unsigned char id;
 
-		id = chunk[i];
+		id = chunks[i];
 
 		if (i == chunk_count - 1) {
 			tmp->array[id] = data;
@@ -75,6 +81,8 @@ void radixtree_insert(radixtree_t *root,
 		tmp = tmp->array[id];
 		tmp->count++;
 	}
+
+	free(chunks);
 }
 
 void radixtree_delete(radixtree_t *root,
@@ -94,7 +102,7 @@ void radixtree_delete(radixtree_t *root,
 	for (i = 0; i < chunk_count; i++) {
 		unsigned char id;
 
-		id = chunk[i];
+		id = chunks[i];
 
 		/* already deleted? may cause data inconsistency! */
 		if (tmp->array[id] == NULL) {
@@ -130,68 +138,104 @@ void radixtree_delete(radixtree_t *root,
 		tmp = next;
 		tmp->count--;
 	}
+
+	free(chunks);
 }
 
-radixtree_t *radixtree_lookup(radixtree_t *root,
-			      unsigned char *(chunker)(void *data, unsigned char *count),
-			      void *data)
+void *radixtree_lookup(radixtree_t *root,
+		       unsigned char *(chunker)(void *data, unsigned char *count),
+		       void *data)
 {
 	radixtree_t *tmp;
-	unsigned char i, chunk_count;
+	unsigned char i, chunk_count, id;
 	unsigned char *chunks;
 
 	chunks = chunker(data, &chunk_count);
 
 	tmp = root;
 
-	for (i = 0; i < chunk_count; i++) {
-		unsigned char id;
+	for (i = 0;; i++) {
+		id = chunks[i];
 
-		id = chunk[i];
-
+		/* leave the for cycle before tmp gets overwritten,
+		 * if the final result was found */
 		if (i == chunk_count - 1) {
+			free(chunks);
 			return tmp->array[id];
 		}
 
+		/* leave if there is no result */
 		if (tmp->array[id] == NULL) {
+			free(chunks);
 			return NULL;
 		}
 
+		/* go deeper */
 		tmp = tmp->array[id];
 	}
+
+	/* we never get here ;c) */
 }
 
-unsigned char *radixtree_outgoing_chunker(void *data, unsigned char *count)
+unsigned char *radixtree_ipv6_chunker(void *data, unsigned char *count)
 {
 	short i;
 	unsigned char counter;
+	unsigned char *chunks;
+	unsigned char *cdata = (unsigned char *) data;
 
-	counter = 198 / 6;
+	counter = 192 / 6;
 	memcpy(count, &counter, sizeof(unsigned char));
 
-	unsigned char chunks[counter];
+	if ((chunks = (unsigned char *) malloc(counter * sizeof(unsigned char))) == NULL) {
+		fprintf(stderr, "[Error] Lack of free memory\n");
+		return NULL;
+	}
 
-	/* 128 + 16 + 32 + 16 - 6 = 192 */
-	for (i = 192, counter = 0; i >= 0; i -= 6, counter++) {
-		chunks[counter] = (*data >> i) & 63;	/* 63 == 0011 1111 */
+	/*
+	 *   3 == 0000 0011 == 0x03
+	 *  15 == 0000 1111 == 0x0f
+	 *  48 == 0011 0000 == 0x30
+	 *  60 == 0011 1100 == 0x3c
+	 *  63 == 0011 1111 == 0x3f
+	 * 192 == 1100 0000 == 0xc0
+	 * 240 == 1111 0000 == 0xf0
+	 * 252 == 1111 1100 == 0xfc
+	 */
+	for (i = 0, counter = 0; counter < *count; i++) {
+		chunks[counter++] = cdata[i] & 0x3f;
+		chunks[counter++] = ((cdata[i] & 0xc0) >> 6) | ((cdata[i + 1] & 0x0f) << 2);
+		i++;
+		chunks[counter++] = ((cdata[i] & 0xf0) >> 4) | ((cdata[i + 1] & 0x03) << 4);
+		i++;
+		chunks[counter++] = ((cdata[i] & 0xfc) >> 2);
 	}
 
 	return chunks;
 }
 
-unsigned char *radixtree_incoming_chunker(void *data, unsigned char *count)
+unsigned char *radixtree_ipv4_chunker(void *data, unsigned char *count)
 {
 	short i;
 	unsigned char counter;
+	unsigned char *chunks;
+	unsigned char *cdata = (unsigned char *) data;
 
 	counter = 72 / 6;
 	memcpy(count, &counter, sizeof(unsigned char));
 
-	unsigned char chunks[counter];
+	if ((chunks = (unsigned char *) malloc(counter * sizeof(unsigned char))) == NULL) {
+		fprintf(stderr, "[Error] Lack of free memory\n");
+		return NULL;
+	}
 
-	/* 32 + 16 + 16 + 8 - 6 = 66 */
-	for (i = 66, counter = 0; i >= 0; i -= 6, counter++) {
-		chunks[counter] = (*data >> i) & 63;	/* 63 == 0011 1111 */
+	for (i = 0, counter = 0; counter < *count; i++) {
+		chunks[counter++] = cdata[i] & 0x3f;
+		chunks[counter++] = ((cdata[i] & 0xc0) >> 6) | ((cdata[i + 1] & 0x0f) << 2);
+		i++;
+		chunks[counter++] = ((cdata[i] & 0xf0) >> 4) | ((cdata[i + 1] & 0x03) << 4);
+		i++;
+		chunks[counter++] = ((cdata[i] & 0xfc) >> 2);
 	}
 
 	return chunks;
