@@ -16,6 +16,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <net/if.h>		/* struct ifreq */
 #include <netinet/if_ether.h>	/* {P,A}F_PACKET, ETH_P_*, socket, SOCK_RAW,
 				 * setsockopt, SOL_SOCKET, SO_BINDTODEVICE, sendto */
 #include <netinet/in.h>		/* htons */
@@ -38,8 +39,6 @@ int			sock;
  */
 int transmission_init(void)
 {
-	unsigned char on = 1;
-
 	/* prepare settings for RAW socket */
 	socket_address.sll_family	= PF_PACKET;			/* RAW communication */
 	socket_address.sll_protocol	= htons(ETH_P_IP);		/* protocol above the ethernet layer */
