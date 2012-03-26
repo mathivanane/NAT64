@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -33,12 +33,14 @@
 #include "ipv4.h"
 #include "ipv6.h"
 #include "nat.h"
+#include "transmitter.h"
 #include "wrapper.h"
 
 #define INTERFACE	"eth0"
 #define BUFFER_SIZE	65536
 #define PREFIX		"::"
 
+struct ifreq		interface;
 struct s_ipv6_addr	ndp_multicast_addr;
 struct s_ipv6_addr	wrapsix_ipv6_prefix;
 
@@ -46,7 +48,6 @@ int process(char *packet);
 
 int main(int argc, char **argv)
 {
-	struct ifreq		interface;
 	struct packet_mreq	pmr;
 
 	struct sockaddr_ll	addr;
@@ -85,6 +86,12 @@ int main(int argc, char **argv)
 	/* compute binary IPv6 address of WrapSix prefix */
 	inet_pton(AF_INET6, PREFIX, &wrapsix_ipv6_prefix);
 
+	/* initiate sending socket */
+	if (transmission_init()) {
+		fprintf(stderr, "[Error] Unable to initiate sending socket\n");
+		return 1;
+	}
+
 	/* initiate NAT tables */
 	nat_init();
 
@@ -103,6 +110,9 @@ int main(int argc, char **argv)
 	}
 
 	/* clean-up */
+	/* close sending socket */
+	transmission_quit();
+
 	/* empty NAT tables */
 	nat_quit();
 

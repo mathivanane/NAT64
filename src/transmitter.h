@@ -16,17 +16,13 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef WRAPPER_H
-#define WRAPPER_H
+#ifndef TRANSMITTER_H
+#define TRANSMITTER_H
 
 #include "ipv4.h"
-#include "ipv6.h"
 
-extern struct ifreq		interface;
-extern struct s_ipv6_addr	ndp_multicast_addr;
-extern struct s_ipv6_addr	wrapsix_ipv6_prefix;
+int transmission_init(void);
+int transmission_quit(void);
+int transmit(unsigned char *data, unsigned int length);
 
-void ipv6_to_ipv4(struct s_ipv6_addr *ipv6_addr, struct s_ipv4_addr *ipv4_addr);
-void ipv4_to_ipv6(struct s_ipv4_addr *ipv4_addr, struct s_ipv6_addr *ipv6_addr);
-
-#endif /* WRAPPER_H */
+#endif /* TRANSMITTER_H */
