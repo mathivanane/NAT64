@@ -23,6 +23,7 @@
 
 int transmission_init(void);
 int transmission_quit(void);
-int transmit(unsigned char *data, unsigned int length);
+int transmit_raw(unsigned char *data, unsigned int length);
+int transmit_ipv4(struct s_ipv4_addr *ip, unsigned char *data, unsigned int length);
 
 #endif /* TRANSMITTER_H */

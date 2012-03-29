@@ -22,6 +22,7 @@
 #include <netinet/in.h>		/* htons */
 #include <netpacket/packet.h>	/* sockaddr_ll, PACKET_OTHERHOST */
 #include <stdio.h>		/* fprintf, stderr, perror */
+#include <string.h>		/* memcpy */
 #include <unistd.h>		/* close */
 
 #include "ipv4.h"
@@ -29,7 +30,8 @@
 #include "wrapper.h"
 
 struct sockaddr_ll	socket_address;
-int			sock;
+struct sockaddr_in	socket_address_ipv4;
+int			sock, sock_ipv4;
 
 /**
  * Initialize socket and all needed properties. Should be called only once on program startup.
@@ -39,6 +41,9 @@ int			sock;
  */
 int transmission_init(void)
 {
+	unsigned char on = 1;
+
+	/** RAW socket **/
 	/* prepare settings for RAW socket */
 	socket_address.sll_family	= PF_PACKET;			/* RAW communication */
 	socket_address.sll_protocol	= htons(ETH_P_IP);		/* protocol above the ethernet layer */
@@ -59,6 +64,26 @@ int transmission_init(void)
 		return 1;
 	}
 
+
+	/** IPv4 socket **/
+	/* prepare settings for RAW IPv4 socket */
+	socket_address_ipv4.sin_family	= AF_INET;
+	socket_address_ipv4.sin_port	= 0x0;
+
+	/* initialize RAW IPv4 socket */
+	if ((sock_ipv4 = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1) {
+		fprintf(stderr, "[Error] Couldn't open RAW IPv4 socket.\n");
+		perror("socket()");
+		return 1;
+	}
+
+	/* we will provide our own IPv4 header */
+	if (setsockopt(sock_ipv4, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) == -1) {
+		fprintf(stderr, "[Error] Couldn't apply the socket settings.\n");
+		perror("setsockopt()");
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -71,8 +96,8 @@ int transmission_init(void)
 int transmission_quit(void)
 {
 	/* close the socket */
-	if (close(sock)) {
-		fprintf(stderr, "[Error] Couldn't close the transmission socket.\n");
+	if (close(sock) || close(sock_ipv4)) {
+		fprintf(stderr, "[Error] Couldn't close the transmission sockets.\n");
 		perror("close()");
 		return 1;
 	} else {
@@ -89,10 +114,34 @@ int transmission_quit(void)
  * @return		0 for success
  * @return		1 for failure
  */
-int transmit(unsigned char *data, unsigned int length)
+int transmit_raw(unsigned char *data, unsigned int length)
 {
 	if (sendto(sock, data, length, 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) != length) {
 		fprintf(stderr, "[Error] Couldn't send a RAW packet.\n");
+		perror("sendto()");
+		return 1;
+	}
+
+	return 0;
+}
+
+/**
+ * Send IPv4 packet with IPv4 header supplied. Ethernet header is added by OS.
+ *
+ * @param	ip	Destination IPv4 address
+ * @param	data	Raw packet data, excluding ethernet header, but including IPv4 header
+ * @param	length	Length of the whole packet in bytes
+ *
+ * @return		0 for success
+ * @return		1 for failure
+ */
+int transmit_ipv4(struct s_ipv4_addr *ip, unsigned char *data, unsigned int length)
+{
+	/* set the destination IPv4 address */
+	memcpy(&socket_address_ipv4.sin_addr.s_addr, ip, sizeof(struct s_ipv4_addr));
+
+	if (sendto(sock_ipv4, data, length, 0, (struct sockaddr *) &socket_address_ipv4, sizeof(struct sockaddr)) != length) {
+		fprintf(stderr, "[Error] Couldn't send an IPv4 packet.\n");
 		perror("sendto()");
 		return 1;
 	}
