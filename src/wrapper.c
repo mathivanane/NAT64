@@ -29,6 +29,7 @@
 #include <time.h>		/* time */
 #include <unistd.h>		/* close */
 
+#include "arp.h"
 #include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
@@ -166,7 +167,7 @@ int process(char *packet)
 			return ipv6(eth, payload);
 		case ETHERTYPE_ARP:
 			printf("[Debug] HW Protocol: ARP\n");
-			return -1;
+			return arp(eth, payload);
 		default:
 			printf("[Debug] HW Protocol: unknown [%d/0x%04x]\n",
 			       htons(eth->type), htons(eth->type));
