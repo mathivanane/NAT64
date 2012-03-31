@@ -38,11 +38,14 @@
 
 #define INTERFACE	"eth0"
 #define BUFFER_SIZE	65536
-#define PREFIX		"::"
+#define PREFIX		"fd77::"
+#define IPV4_ADDR	"192.168.0.111"
 
 struct ifreq		interface;
+struct s_mac_addr	mac;
 struct s_ipv6_addr	ndp_multicast_addr;
 struct s_ipv6_addr	wrapsix_ipv6_prefix;
+struct s_ipv4_addr	wrapsix_ipv4_addr;
 
 int process(char *packet);
 
@@ -70,6 +73,20 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	/* get interface's HW address (i.e. MAC) */
+	if (ioctl(sniff_sock, SIOCGIFHWADDR, &interface) == 0) {
+		memcpy(&mac, &interface.ifr_hwaddr.sa_data, sizeof(struct s_mac_addr));
+
+		/* reinitialize the interface */
+		if (ioctl(sniff_sock, SIOCGIFINDEX, &interface) == -1) {
+			fprintf(stderr, "[Error] Unable to reinitialize the interface\n");
+			return 1;
+		}
+	} else {
+		fprintf(stderr, "[Error] Unable to get the interface's HW address\n");
+		return 1;
+	}
+
 	/* set the promiscuous mode */
 	memset(&pmr, 0x0, sizeof(pmr));
 	pmr.mr_ifindex = interface.ifr_ifindex;
@@ -85,6 +102,9 @@ int main(int argc, char **argv)
 
 	/* compute binary IPv6 address of WrapSix prefix */
 	inet_pton(AF_INET6, PREFIX, &wrapsix_ipv6_prefix);
+
+	/* compute binary IPv4 address of WrapSix */
+	inet_pton(AF_INET, IPV4_ADDR, &wrapsix_ipv4_addr);
 
 	/* initiate sending socket */
 	if (transmission_init()) {

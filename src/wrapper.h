@@ -23,8 +23,10 @@
 #include "ipv6.h"
 
 extern struct ifreq		interface;
+extern struct s_mac_addr	mac;
 extern struct s_ipv6_addr	ndp_multicast_addr;
 extern struct s_ipv6_addr	wrapsix_ipv6_prefix;
+extern struct s_ipv4_addr	wrapsix_ipv4_addr;
 
 void ipv6_to_ipv4(struct s_ipv6_addr *ipv6_addr, struct s_ipv4_addr *ipv4_addr);
 void ipv4_to_ipv6(struct s_ipv4_addr *ipv4_addr, struct s_ipv6_addr *ipv6_addr);
