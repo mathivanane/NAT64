@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -28,15 +28,25 @@ struct s_ipv6_addr {
 
 /* IPv6 header structure */
 struct s_ipv6 {
-	unsigned char		ver;            /*   8 b; version */
-	unsigned char		traffic_class;  /*   8 b; traffic class */
-	unsigned short		flow_label;     /*  16 b; flow label (qos) */
-	unsigned short		len;            /*  16 b; payload length */
-	unsigned char		next_header;    /*   8 b; next header */
-	unsigned char		hop_limit;      /*   8 b; hop limit (replaces ttl) */
-	struct s_ipv6_addr	ip_src;         /* 128 b; source address */
-	struct s_ipv6_addr	ip_dest;        /* 128 b; destination address */
+	unsigned char		ver;		/*   4 b; version */
+	unsigned char		traffic_class;	/*   8 b; traffic class */
+	unsigned short		flow_label;	/*  20 b; flow label (qos) */
+	unsigned short		len;		/*  16 b; payload length */
+	unsigned char		next_header;	/*   8 b; next header */
+	unsigned char		hop_limit;	/*   8 b; hop limit (replaces ttl) */
+	struct s_ipv6_addr	ip_src;		/* 128 b; source address */
+	struct s_ipv6_addr	ip_dest;	/* 128 b; destination address */
 } __attribute__ ((__packed__));
+
+/* IPv6 pseudoheader structure for checksum */
+struct s_ipv6_pseudo {
+	struct s_ipv6_addr	ip_src;		/* 128 b; source address */
+	struct s_ipv6_addr	ip_dest;	/* 128 b; destination address */
+	unsigned int		len;		/*  32 b; payload length */
+	unsigned int		zeros:24;	/*  24 b; reserved */
+	unsigned char		next_header;	/*   8 b; next header */
+} __attribute__ ((__packed__));
+
 
 int ipv6(struct s_ethernet *eth, char *packet);
 
