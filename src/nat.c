@@ -20,6 +20,7 @@
 #include <stdlib.h>		/* malloc */
 #include <time.h>		/* time */
 
+#include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
 #include "nat.h"
@@ -68,6 +69,7 @@ void nat_quit(void)
 }
 
 struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
+		      struct s_mac_addr eth_src,
 		      struct s_ipv6_addr ipv6_src, struct s_ipv6_addr ipv6_dst,
 		      unsigned short	 port_src, unsigned short     port_dst)
 {
@@ -82,33 +84,37 @@ struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 	radixsearch6.port_src = port_src;
 	radixsearch6.port_dst = port_dst;
 
-	if ((result = (struct s_nat *) radixtree_lookup(nat_proto6, radixtree_ipv6_chunker, &radixsearch6)) == NULL) {
+	if ((result = (struct s_nat *) radixtree_lookup(nat_proto6,
+	    radixtree_ipv6_chunker, &radixsearch6)) == NULL) {
 		/* if no connection is found, let's create one */
-		if ((connection = (struct s_nat *) malloc(sizeof(struct s_nat))) == NULL) {
+		if ((connection =
+		    (struct s_nat *) malloc(sizeof(struct s_nat))) == NULL) {
 			fprintf(stderr, "[Error] Lack of free memory\n");
 			return NULL;
 		}
 
+		connection->mac = eth_src;
 		connection->ipv6 = ipv6_src;
 		connection->ipv4 = radixsearch6.ipv4;
 		connection->ipv6_port_src = port_src;
 		connection->ipv4_port_dst = port_dst;
 		connection->last_packet = time(NULL);
 
-		/* generate some outgoing port */
-		do {
-			/* return port from range 1024 - 65535 */
-			connection->ipv4_port_src = (rand() % 64511) + 1024;
-
-			result = radixtree_lookup(nat_proto6, radixtree_ipv6_chunker, &radixsearch6);
-		} while (result != NULL);
-
-		/* save this connection to the NAT table (to *both* of them) */
 		radixsearch4.addr = radixsearch6.ipv4;
 		radixsearch4.port_src = port_dst;
-		radixsearch4.port_dst = connection->ipv4_port_src;
 		radixsearch4.zeros = 0x0;
 
+		/* generate some outgoing port */
+		do {
+			/* returns port from range 1024 - 65535 */
+			radixsearch4.port_dst = (rand() % 64511) + 1024;
+
+			result = radixtree_lookup(nat_proto4, radixtree_ipv4_chunker, &radixsearch4);
+		} while (result != NULL);
+
+		connection->ipv4_port_src = radixsearch4.port_dst;
+
+		/* save this connection to the NAT table (to *both* of them) */
 		radixtree_insert(nat_proto6, radixtree_ipv6_chunker, &radixsearch6, connection);
 		radixtree_insert(nat_proto4, radixtree_ipv4_chunker, &radixsearch4, connection);
 
