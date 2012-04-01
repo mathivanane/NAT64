@@ -175,13 +175,25 @@ int process(char *packet)
 	}
 }
 
+/**
+ * Translator of IPv6 address with embedded IPv4 address to that IPv4 address.
+ *
+ * @param	ipv6_addr	IPv6 address (as data source)
+ * @param	ipv4_addr	Where to put final IPv4 address
+ */
 void ipv6_to_ipv4(struct s_ipv6_addr *ipv6_addr, struct s_ipv4_addr *ipv4_addr)
 {
-	memcpy(ipv4_addr, &ipv6_addr + 12, 4);
+	memcpy(ipv4_addr, ipv6_addr->addr + 12, 4);
 }
 
+/**
+ * Translator of IPv4 address to IPv6 address with WrapSix' prefix.
+ *
+ * @param	ipv4_addr	IPv4 address (as data source)
+ * @param	ipv6_addr	Where to put final IPv6 address
+ */
 void ipv4_to_ipv6(struct s_ipv4_addr *ipv4_addr, struct s_ipv6_addr *ipv6_addr)
 {
-	*ipv6_addr = wrapsix_ipv6_prefix;
-	memcpy(ipv6_addr + 12, &ipv4_addr, 4);
+	memcpy(ipv6_addr, &wrapsix_ipv6_prefix, 12);
+	memcpy(ipv6_addr->addr + 12, ipv4_addr, 4);
 }
