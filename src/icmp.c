@@ -130,8 +130,8 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 				       IPPROTO_ICMPV6, (unsigned char *) icmp);
 
 	/* copy the payload data (with new checksum) */
-	memcpy(packet + sizeof(struct s_ethernet) + sizeof(struct s_ipv6), payload,
-	       payload_size);
+	memcpy(packet + sizeof(struct s_ethernet) + sizeof(struct s_ipv6),
+	       payload, payload_size);
 
 	/* send translated packet */
 	transmit_raw(packet, sizeof(struct s_ethernet) + sizeof(struct s_ipv6) +

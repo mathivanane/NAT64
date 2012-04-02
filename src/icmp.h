@@ -49,19 +49,19 @@ struct s_icmp {
 	unsigned char		type;           /*  8 b; ICMP type */
 	unsigned char		code;           /*  8 b; subtype of ICMP type */
 	unsigned short		checksum;       /* 16 b */
-};
+} __attribute__ ((__packed__));
 
 /* ICMP echo structure */
 struct s_icmp_echo {
 	unsigned short		id;		/* 16 b; ID value */
 	unsigned short		seq;		/* 16 b; sequence number */
-};
+} __attribute__ ((__packed__));
 
 /* ICMP NDP NS structure */
 struct s_icmp_ndp_ns {
 	unsigned int		zeros;		/*  32 b; reserved section */
 	struct s_ipv6_addr	target;		/* 128 b; target IP address */
-};
+} __attribute__ ((__packed__));
 
 /* ICMP NDP NA structure */
 struct s_icmp_ndp_na {
@@ -72,7 +72,7 @@ struct s_icmp_ndp_na {
 	unsigned char		opt_len;	/*   8 b; option -- length */
 	struct s_mac_addr	opt_tlla;	/*  48 b; option -- target
 							  link-layer address */
-};
+} __attribute__ ((__packed__));
 
 int icmp_ipv4(struct s_ethernet *eth, struct s_ipv4 *ip4, char *payload,
 	      unsigned short payload_size);
