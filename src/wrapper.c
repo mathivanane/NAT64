@@ -161,7 +161,7 @@ int process(char *packet)
 	switch (htons(eth->type)) {
 		case ETHERTYPE_IP:
 			printf("[Debug] HW Protocol: IPv4\n");
-			return -1;
+			return ipv4(eth, payload);
 		case ETHERTYPE_IPV6:
 			printf("[Debug] HW Protocol: IPv6\n");
 			return ipv6(eth, payload);

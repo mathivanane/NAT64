@@ -21,41 +21,48 @@
 #include <string.h>		/* memcmp */
 
 #include "icmp.h"
-#include "ipv6.h"
+#include "ipv4.h"
 #include "wrapper.h"
 
-int ipv6(struct s_ethernet *eth, char *packet)
+int ipv4(struct s_ethernet *eth, char *packet)
 {
-	struct s_ipv6	*ip;
+	struct s_ipv4	*ip;
 	char		*payload;
+	unsigned short	 header_size;
+	unsigned short	 data_size;
 
-	/* load data into structures */
-	ip = (struct s_ipv6 *) packet;
-	payload = packet + sizeof(struct s_ipv6);
+	/* load IP header */
+	ip = (struct s_ipv4 *) packet;
 
 	/* test if this packet belongs to us */
-	if (memcmp(&wrapsix_ipv6_prefix, &ip->ip_dest, 12) != 0 &&
-	    memcmp(&ndp_multicast_addr,  &ip->ip_dest, 13) != 0) {
-		printf("[Debug] [IPv6] This is unfamiliar packet\n");
+	if (memcmp(&wrapsix_ipv4_addr, &ip->ip_dest, 4) != 0) {
+		printf("[Debug] [IPv4] This is unfamiliar packet\n");
 		return 1;
 	}
 
-	switch (ip->next_header) {
+	/* TODO: verify checksum */
+
+	/* compute sizes and get payload */
+	header_size = (ip->ver_hdrlen & 0x0f) * 4;	/* # of 4 byte words */
+	data_size = htons(ip->len) - header_size;
+	payload = packet + header_size;
+
+	switch (ip->proto) {
 		case IPPROTO_TCP:
-			printf("[Debug] IPv6 Protocol: TCP\n");
-			/*ipv6_tcp(eth, ip, payload);*/
+			printf("[Debug] IPv4 Protocol: TCP\n");
+			/*ipv4_tcp(eth, ip, payload, data_size);*/
 			break;
 		case IPPROTO_UDP:
-			printf("[Debug] IPv6 Protocol: UDP\n");
-			/*ipv6_udp(eth, ip, payload);*/
+			printf("[Debug] IPv4 Protocol: UDP\n");
+			/*ipv4_udp(eth, ip, payload, data_size);*/
 			break;
-		case IPPROTO_ICMPV6:
-			printf("[Debug] IPv6 Protocol: ICMP\n");
-			icmp_ipv6(eth, ip, payload);
+		case IPPROTO_ICMP:
+			printf("[Debug] IPv4 Protocol: ICMP\n");
+			icmp_ipv4(eth, ip, payload, data_size);
 			break;
 		default:
-			printf("[Debug] IPv6 Protocol: unknown [%d/0x%x]\n",
-			       ip->next_header, ip->next_header);
+			printf("[Debug] IPv4 Protocol: unknown [%d/0x%x]\n",
+			       ip->proto, ip->proto);
 			return 1;
 	}
 

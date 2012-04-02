@@ -30,10 +30,10 @@ struct s_ipv6_addr {
 struct s_ipv6 {
 	unsigned char		ver;		/*   4 b; version */
 	unsigned char		traffic_class;	/*   8 b; traffic class */
-	unsigned short		flow_label;	/*  20 b; flow label (qos) */
+	unsigned short		flow_label;	/*  20 b; flow label (QOS) */
 	unsigned short		len;		/*  16 b; payload length */
 	unsigned char		next_header;	/*   8 b; next header */
-	unsigned char		hop_limit;	/*   8 b; hop limit (replaces ttl) */
+	unsigned char		hop_limit;	/*   8 b; hop limit (aka TTL) */
 	struct s_ipv6_addr	ip_src;		/* 128 b; source address */
 	struct s_ipv6_addr	ip_dest;	/* 128 b; destination address */
 } __attribute__ ((__packed__));
@@ -46,7 +46,6 @@ struct s_ipv6_pseudo {
 	unsigned int		zeros:24;	/*  24 b; reserved */
 	unsigned char		next_header;	/*   8 b; next header */
 } __attribute__ ((__packed__));
-
 
 int ipv6(struct s_ethernet *eth, char *packet);
 

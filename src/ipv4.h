@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2010  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,9 +19,43 @@
 #ifndef IPV4_H
 #define IPV4_H
 
+#include "ethernet.h"
+
+/* IPv4 flags */
+#define IPV4_FLAG_DONT_FRAGMENT		0x4000
+#define IPV4_FLAG_MORE_FRAGMENTS	0x2000
+
 /* IPv4 address structure */
 struct s_ipv4_addr {
 	unsigned char		addr[4];
 } __attribute__ ((__packed__));
+
+/* IPv4 header structure */
+struct s_ipv4 {
+	unsigned char		ver_hdrlen;	/*  4 b; version,
+						    4 b; header length in 4 B */
+	unsigned char		tos;		/*  8 b; type of service */
+	unsigned short		len;		/* 16 b; total packet length */
+	unsigned short		id;		/* 16 b; id of the packet
+							 (for fragmentation) */
+	unsigned short		flags_offset;	/*  3 b; flags,
+						   13 b; fragment offset in B */
+	unsigned char		ttl;		/*  8 b; time to live */
+	unsigned char		proto;		/*  8 b; protocol in payload */
+	unsigned short		checksum;	/* 16 b */
+	struct s_ipv4_addr	ip_src;		/* 32 b; source address */
+	struct s_ipv4_addr	ip_dest;	/* 32 b; destination address */
+} __attribute__ ((__packed__));
+
+/* IPv4 pseudoheader structure for checksum */
+struct s_ipv4_pseudo {
+	struct s_ipv4_addr	ip_src;		/* 32 b; source address */
+	struct s_ipv4_addr	ip_dest;	/* 32 b; destination address */
+	unsigned char		zeros;		/*  8 b */
+	unsigned char		proto;		/*  8 b; protocol in payload */
+	unsigned int		len;		/* 32 b; payload length */
+} __attribute__ ((__packed__));
+
+int ipv4(struct s_ethernet *eth, char *packet);
 
 #endif /* IPV4_H */
