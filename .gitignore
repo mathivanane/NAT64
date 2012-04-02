@@ -22,3 +22,6 @@ wrapsix-wrapper
 
 # debug
 core
+
+# generated documentation
+doc/
