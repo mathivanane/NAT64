@@ -95,11 +95,11 @@ unsigned short checksum_ipv4(struct s_ipv4_addr ip_src,
 	header->ip_dest = ip_dest;
 	header->zeros	= 0x0;
 	header->proto	= proto;
-	header->len	= htonl((unsigned int) length);
+	header->len	= htons(length);
 
 	memcpy(buffer + sizeof(struct s_ipv4_pseudo), payload, (int) length);
 
-	sum = checksum(buffer, sizeof(struct s_ipv6_pseudo) + (int) length);
+	sum = checksum(buffer, sizeof(struct s_ipv4_pseudo) + (int) length);
 
 	free(buffer);
 

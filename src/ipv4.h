@@ -53,7 +53,7 @@ struct s_ipv4_pseudo {
 	struct s_ipv4_addr	ip_dest;	/* 32 b; destination address */
 	unsigned char		zeros;		/*  8 b */
 	unsigned char		proto;		/*  8 b; protocol in payload */
-	unsigned int		len;		/* 32 b; payload length */
+	unsigned short		len;		/* 16 b; payload length */
 } __attribute__ ((__packed__));
 
 int ipv4(struct s_ethernet *eth, char *packet);

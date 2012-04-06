@@ -58,7 +58,20 @@ int udp_ipv4(struct s_ethernet *eth, struct s_ipv4 *ip4, char *payload,
 	/* parse UDP header */
 	udp = (struct s_udp *) payload;
 
-	/* TODO: checksum recheck */
+	/* checksum recheck */
+	if (udp->checksum != 0x0000) {
+		orig_checksum = udp->checksum;
+		udp->checksum = 0;
+		udp->checksum = checksum_ipv4(ip4->ip_src, ip4->ip_dest,
+					      payload_size, IPPROTO_UDP,
+					      (unsigned char *) udp);
+
+		if (udp->checksum != orig_checksum) {
+			/* packet is corrupted and shouldn't be processed */
+			printf("[Debug] Wrong checksum\n");
+			return 1;
+		}
+	}
 
 	/* find connection in NAT */
 	connection = nat_in(nat4_udp, ip4->ip_src, udp->port_src, udp->port_dest);
@@ -185,16 +198,17 @@ int udp_ipv6(struct s_ethernet *eth, struct s_ipv6 *ip6, char *payload)
 	udp->port_src = connection->ipv4_port_src;
 
 	/* compute UDP checksum */
-	udp->checksum = 0;
-	/* TODO: checksum computation; in IPv4 it's optional in UDP */
+	udp->checksum = 0x0;
+	udp->checksum = checksum_ipv4(ip4->ip_src, ip4->ip_dest,
+				      htons(ip6->len), IPPROTO_UDP,
+				      (unsigned char *) payload);
 
 	/* copy the payload data (with new checksum) */
 	memcpy(packet + sizeof(struct s_ipv4), payload, htons(ip6->len));
 
 	/* compute IPv4 checksum */
-	ip4->checksum = checksum_ipv4(ip4->ip_src, ip4->ip_dest,
-				      htons(ip4->len), IPPROTO_UDP,
-				      (unsigned char *) udp);
+	ip4->checksum = 0x0;
+	ip4->checksum = checksum(ip4, sizeof(struct s_ipv4));
 
 	/* send translated packet */
 	printf("[Debug] transmitting\n");
