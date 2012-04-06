@@ -22,6 +22,7 @@
 
 #include "icmp.h"
 #include "ipv4.h"
+#include "udp.h"
 #include "wrapper.h"
 
 int ipv4(struct s_ethernet *eth, char *packet)
@@ -54,7 +55,7 @@ int ipv4(struct s_ethernet *eth, char *packet)
 			break;
 		case IPPROTO_UDP:
 			printf("[Debug] IPv4 Protocol: UDP\n");
-			/*ipv4_udp(eth, ip, payload, data_size);*/
+			udp_ipv4(eth, ip, payload, data_size);
 			break;
 		case IPPROTO_ICMP:
 			printf("[Debug] IPv4 Protocol: ICMP\n");

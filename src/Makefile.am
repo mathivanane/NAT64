@@ -9,4 +9,5 @@ wrapsix_wrapper_SOURCES = \
 			  nat.c nat.h \
 			  radixtree.c radixtree.h \
 			  transmitter.c transmitter.h \
+			  udp.c udp.h \
 			  wrapper.c wrapper.h
