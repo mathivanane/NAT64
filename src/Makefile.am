@@ -8,6 +8,7 @@ wrapsix_wrapper_SOURCES = \
 			  ipv6.c ipv6.h \
 			  nat.c nat.h \
 			  radixtree.c radixtree.h \
+			  tcp.c tcp.h \
 			  transmitter.c transmitter.h \
 			  udp.c udp.h \
 			  wrapper.c wrapper.h

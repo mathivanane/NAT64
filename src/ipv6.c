@@ -22,6 +22,7 @@
 
 #include "icmp.h"
 #include "ipv6.h"
+#include "tcp.h"
 #include "udp.h"
 #include "wrapper.h"
 
@@ -44,7 +45,7 @@ int ipv6(struct s_ethernet *eth, char *packet)
 	switch (ip->next_header) {
 		case IPPROTO_TCP:
 			printf("[Debug] IPv6 Protocol: TCP\n");
-			/*ipv6_tcp(eth, ip, payload);*/
+			tcp_ipv6(eth, ip, payload);
 			break;
 		case IPPROTO_UDP:
 			printf("[Debug] IPv6 Protocol: UDP\n");
