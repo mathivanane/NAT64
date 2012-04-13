@@ -56,6 +56,13 @@ struct s_ipv4_pseudo {
 	unsigned short		len;		/* 16 b; payload length */
 } __attribute__ ((__packed__));
 
+/* IPv4 pseudoheader structure for checksum update */
+struct s_ipv4_pseudo_delta {
+	struct s_ipv4_addr	ip_src;		/* 32 b; source address */
+	struct s_ipv4_addr	ip_dest;	/* 32 b; destination address */
+	unsigned short		port;		/* 16 b; transport layer address */
+} __attribute__ ((__packed__));
+
 int ipv4(struct s_ethernet *eth, char *packet);
 
 #endif /* IPV4_H */

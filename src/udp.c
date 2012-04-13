@@ -110,9 +110,17 @@ int udp_ipv4(struct s_ethernet *eth, struct s_ipv4 *ip4, char *payload,
 	udp->port_dest = connection->ipv6_port_src;
 
 	/* compute UDP checksum */
-	udp->checksum = 0x0;
-	udp->checksum = checksum_ipv6(ip6->ip_src, ip6->ip_dest, payload_size,
-				      IPPROTO_UDP, (unsigned char *) udp);
+	if (udp->checksum) {
+		udp->checksum = checksum_ipv6_update(udp->checksum,
+						     ip4->ip_src, ip4->ip_dest,
+						     connection->ipv4_port_src,
+						     ip6->ip_src, ip6->ip_dest,
+						     connection->ipv6_port_src);
+	} else {
+		/* if original checksum was 0x0000, we need to compute it */
+		udp->checksum = checksum_ipv6(ip6->ip_src, ip6->ip_dest, payload_size,
+					      IPPROTO_UDP, (unsigned char *) udp);
+	}
 
 	/* copy the payload data (with new checksum) */
 	memcpy(packet + sizeof(struct s_ethernet) + sizeof(struct s_ipv6),
@@ -198,10 +206,11 @@ int udp_ipv6(struct s_ethernet *eth, struct s_ipv6 *ip6, char *payload)
 	udp->port_src = connection->ipv4_port_src;
 
 	/* compute UDP checksum */
-	udp->checksum = 0x0;
-	udp->checksum = checksum_ipv4(ip4->ip_src, ip4->ip_dest,
-				      htons(ip6->len), IPPROTO_UDP,
-				      (unsigned char *) payload);
+	udp->checksum = checksum_ipv4_update(udp->checksum,
+					     ip6->ip_src, ip6->ip_dest,
+					     connection->ipv6_port_src,
+					     ip4->ip_src, ip4->ip_dest,
+					     connection->ipv4_port_src);
 
 	/* copy the payload data (with new checksum) */
 	memcpy(packet + sizeof(struct s_ipv4), payload, htons(ip6->len));

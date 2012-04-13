@@ -47,6 +47,13 @@ struct s_ipv6_pseudo {
 	unsigned char		next_header;	/*   8 b; next header */
 } __attribute__ ((__packed__));
 
+/* IPv6 pseudoheader structure for checksum update */
+struct s_ipv6_pseudo_delta {
+	struct s_ipv6_addr	ip_src;		/* 128 b; source address */
+	struct s_ipv6_addr	ip_dest;	/* 128 b; destination address */
+	unsigned short		port;		/*  16 b; transport layer address */
+} __attribute__ ((__packed__));
+
 int ipv6(struct s_ethernet *eth, char *packet);
 
 #endif /* IPV6_H */

@@ -110,9 +110,11 @@ int tcp_ipv4(struct s_ethernet *eth, struct s_ipv4 *ip4, char *payload,
 	tcp->port_dest = connection->ipv6_port_src;
 
 	/* compute TCP checksum */
-	tcp->checksum = 0x0;
-	tcp->checksum = checksum_ipv6(ip6->ip_src, ip6->ip_dest, payload_size,
-				      IPPROTO_TCP, (unsigned char *) tcp);
+	tcp->checksum = checksum_ipv6_update(tcp->checksum,
+					     ip4->ip_src, ip4->ip_dest,
+					     connection->ipv4_port_src,
+					     ip6->ip_src, ip6->ip_dest,
+					     connection->ipv6_port_src);
 
 	/* copy the payload data (with new checksum) */
 	memcpy(packet + sizeof(struct s_ethernet) + sizeof(struct s_ipv6),
@@ -198,10 +200,11 @@ int tcp_ipv6(struct s_ethernet *eth, struct s_ipv6 *ip6, char *payload)
 	tcp->port_src = connection->ipv4_port_src;
 
 	/* compute TCP checksum */
-	tcp->checksum = 0;
-	tcp->checksum = checksum_ipv4(ip4->ip_src, ip4->ip_dest,
-				      htons(ip6->len), IPPROTO_TCP,
-				      (unsigned char *) tcp);
+	tcp->checksum = checksum_ipv4_update(tcp->checksum,
+					     ip6->ip_src, ip6->ip_dest,
+					     connection->ipv6_port_src,
+					     ip4->ip_src, ip4->ip_dest,
+					     connection->ipv4_port_src);
 
 	/* copy the payload data (with new checksum) */
 	memcpy(packet + sizeof(struct s_ipv4), payload, htons(ip6->len));

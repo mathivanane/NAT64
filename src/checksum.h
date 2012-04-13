@@ -23,11 +23,28 @@
 #include "ipv6.h"
 
 unsigned short checksum(const void *data, int length);
+unsigned short checksum_update(unsigned short old_sum,
+			       unsigned short *old_data, short old_len,
+			       unsigned short *new_data, short new_len);
 unsigned short checksum_ipv4(struct s_ipv4_addr ip_src,
 			     struct s_ipv4_addr ip_dest, unsigned short length,
 			     unsigned char proto, unsigned char *payload);
 unsigned short checksum_ipv6(struct s_ipv6_addr ip_src,
 			     struct s_ipv6_addr ip_dest, unsigned short length,
 			     unsigned char proto, unsigned char *payload);
+unsigned short checksum_ipv4_update(unsigned short old_sum,
+				    struct s_ipv6_addr ip6_src,
+				    struct s_ipv6_addr ip6_dest,
+				    unsigned short old_port,
+				    struct s_ipv4_addr ip4_src,
+				    struct s_ipv4_addr ip4_dest,
+				    unsigned short new_port);
+unsigned short checksum_ipv6_update(unsigned short old_sum,
+				    struct s_ipv4_addr ip4_src,
+				    struct s_ipv4_addr ip4_dest,
+				    unsigned short old_port,
+				    struct s_ipv6_addr ip6_src,
+				    struct s_ipv6_addr ip6_dest,
+				    unsigned short new_port);
 
 #endif /* CHECKSUM_H */

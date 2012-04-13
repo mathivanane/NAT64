@@ -65,6 +65,49 @@ unsigned short checksum(const void *data, int length)
 }
 
 /**
+ * General checksum update computation function. Inspired by algorithm
+ * in RFC3022.
+ *
+ * @param	old_sum		Old checksum
+ * @param	old_data	Pointer to old part of data. Must be of even
+ * 				number of octets
+ * @param	old_len		Length of old data
+ * @param	new_data	Pointer to new part of data. Must be of even
+ * 				number of octets
+ * @param	new_len		Length of new data
+ *
+ * @return			Updated checksum
+ */
+unsigned short checksum_update(unsigned short old_sum,
+			       unsigned short *old_data, short old_len,
+			       unsigned short *new_data, short new_len)
+{
+	unsigned int sum;
+
+	sum = ~old_sum & 0xffff;
+
+	while (old_len) {
+		sum -= *old_data++;
+		if (sum & 0x80000000) {
+			sum--;
+			sum &= 0xffff;
+		}
+		old_len -= 2;
+	}
+
+	while (new_len) {
+		sum += *new_data++;
+		if (sum & 0x00010000) {
+			sum++;
+			sum &= 0xffff;
+		}
+		new_len -= 2;
+	}
+
+	return ~sum & 0xffff;
+}
+
+/**
  * IPv4 checksum computation function
  *
  * @param	ip_src	Source IPv4 address
@@ -146,4 +189,82 @@ unsigned short checksum_ipv6(struct s_ipv6_addr ip_src,
 	free(buffer);
 
 	return sum;
+}
+
+/**
+ * IPv4 checksum update computation function
+ *
+ * @param	old_sum		Old checksum
+ * @param	ip6_src		Original source IPv6 address
+ * @param	ip6_dest	Original destination IPv6 address
+ * @param	old_port	Original transport layer address (port)
+ * @param	ip4_src		New source IPv4 address
+ * @param	ip4_dest	New destination IPv4 address
+ * @param	new_port	New transport layer address (port)
+ *
+ * @return			Checksum
+ */
+unsigned short checksum_ipv4_update(unsigned short old_sum,
+				    struct s_ipv6_addr ip6_src,
+				    struct s_ipv6_addr ip6_dest,
+				    unsigned short old_port,
+				    struct s_ipv4_addr ip4_src,
+				    struct s_ipv4_addr ip4_dest,
+				    unsigned short new_port)
+{
+	struct s_ipv4_pseudo_delta delta4;
+	struct s_ipv6_pseudo_delta delta6;
+
+	delta4.ip_src	= ip4_src;
+	delta4.ip_dest	= ip4_dest;
+	delta4.port	= new_port;
+
+	delta6.ip_src	= ip6_src;
+	delta6.ip_dest	= ip6_dest;
+	delta6.port	= old_port;
+
+	return checksum_update(old_sum,
+			       (unsigned short *) &delta6,
+			       sizeof(struct s_ipv6_pseudo_delta),
+			       (unsigned short *) &delta4,
+			       sizeof(struct s_ipv4_pseudo_delta));
+}
+
+/**
+ * IPv6 checksum update computation function
+ *
+ * @param	old_sum		Old checksum
+ * @param	ip4_src		Original source IPv4 address
+ * @param	ip4_dest	Original destination IPv4 address
+ * @param	old_port	Original transport layer address (port)
+ * @param	ip6_src		New source IPv6 address
+ * @param	ip6_dest	New destination IPv6 address
+ * @param	new_port	New transport layer address (port)
+ *
+ * @return			Checksum
+ */
+unsigned short checksum_ipv6_update(unsigned short old_sum,
+				    struct s_ipv4_addr ip4_src,
+				    struct s_ipv4_addr ip4_dest,
+				    unsigned short old_port,
+				    struct s_ipv6_addr ip6_src,
+				    struct s_ipv6_addr ip6_dest,
+				    unsigned short new_port)
+{
+	struct s_ipv4_pseudo_delta delta4;
+	struct s_ipv6_pseudo_delta delta6;
+
+	delta4.ip_src	= ip4_src;
+	delta4.ip_dest	= ip4_dest;
+	delta4.port	= old_port;
+
+	delta6.ip_src	= ip6_src;
+	delta6.ip_dest	= ip6_dest;
+	delta6.port	= new_port;
+
+	return checksum_update(old_sum,
+			       (unsigned short *) &delta4,
+			       sizeof(struct s_ipv4_pseudo_delta),
+			       (unsigned short *) &delta6,
+			       sizeof(struct s_ipv6_pseudo_delta));
 }
