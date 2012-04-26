@@ -52,77 +52,148 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	unsigned short orig_checksum;
 	unsigned char *packet;
 
-	struct s_ethernet *eth6;
-	struct s_ipv6 *ip6;
+	struct s_ethernet	*eth6;
+	struct s_ipv6		*ip6;
+	struct s_ipv6_fragment	*frag;
 
-	/* parse TCP header */
-	tcp = (struct s_tcp *) payload;
+	/* full processing of unfragmented packet or the first fragment with
+	 * TCP header with checksum field (this is safe)
+	 */
+	if ((ip4->flags_offset & htons(IPV4_FLAG_DONT_FRAGMENT)) ||
+	    ((ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS)) &&
+	     (ip4->flags_offset & 0xff1f) == 0x0000 &&
+	     payload_size >= sizeof(struct s_tcp) - 2)) {
+		/* parse TCP header */
+		tcp = (struct s_tcp *) payload;
 
-	/* checksum recheck */
-	if (tcp->checksum != 0x0000) {
-		orig_checksum = tcp->checksum;
-		tcp->checksum = 0;
-		tcp->checksum = checksum_ipv4(ip4->ip_src, ip4->ip_dest,
-					      payload_size, IPPROTO_TCP,
-					      (unsigned char *) tcp);
+		/* checksum recheck -- only if the packet is unfragmented */
+		if ((ip4->flags_offset | htons(IPV4_FLAG_DONT_FRAGMENT)) ==
+		    htons(IPV4_FLAG_DONT_FRAGMENT)) {
+			orig_checksum = tcp->checksum;
+			tcp->checksum = 0;
+			tcp->checksum = checksum_ipv4(ip4->ip_src, ip4->ip_dest,
+						      payload_size, IPPROTO_TCP,
+						      (unsigned char *) tcp);
 
-		if (tcp->checksum != orig_checksum) {
-			/* packet is corrupted and shouldn't be processed */
-			printf("[Debug] Wrong checksum\n");
+			if (tcp->checksum != orig_checksum) {
+				/* packet is corrupted and shouldn't be
+				 * processed */
+				printf("[Debug] Wrong checksum\n");
+				return 1;
+			}
+		}
+
+		/* find connection in NAT */
+		connection = nat_in(nat4_tcp, ip4->ip_src,
+				    tcp->port_src, tcp->port_dest);
+
+		if (connection == NULL) {
+			printf("[Debug] Incoming connection wasn't found in "
+			       "NAT\n");
 			return 1;
 		}
-	}
 
-	/* find connection in NAT */
-	connection = nat_in(nat4_tcp, ip4->ip_src, tcp->port_src, tcp->port_dest);
+		/* allocate enough memory for translated packet */
+		if ((packet = (unsigned char *) malloc(
+		    payload_size > MTU - sizeof(struct s_ipv6) ?
+		    MTU + sizeof(struct s_ethernet) :
+		    sizeof(struct s_ethernet) + sizeof(struct s_ipv6) +
+		    payload_size)) == NULL) {
+			fprintf(stderr, "[Error] Lack of free memory\n");
+			return 1;
+		}
+		eth6 = (struct s_ethernet *) packet;
+		ip6 = (struct s_ipv6 *) (packet + sizeof(struct s_ethernet));
 
-	if (connection == NULL) {
-		printf("[Debug] Incoming connection wasn't found in NAT\n");
+		/* build ethernet header */
+		eth6->dest		= connection->mac;
+		eth6->src		= mac;
+		eth6->type		= htons(ETHERTYPE_IPV6);
+
+		/* build IPv6 header */
+		ip6->ver		= 0x60 | (ip4->tos >> 4);
+		ip6->traffic_class	= ip4->tos << 4;
+		ip6->flow_label		= 0x0;
+		ip6->hop_limit		= ip4->ttl;
+		ipv4_to_ipv6(&ip4->ip_src, &ip6->ip_src);
+		memcpy(&ip6->ip_dest, &connection->ipv6,
+		       sizeof(struct s_ipv6_addr));
+
+		/* set incoming source port */
+		tcp->port_dest = connection->ipv6_port_src;
+
+		/* compute TCP checksum */
+		tcp->checksum = checksum_ipv6_update(tcp->checksum,
+						     ip4->ip_src, ip4->ip_dest,
+						     connection->ipv4_port_src,
+						     ip6->ip_src, ip6->ip_dest,
+						     connection->ipv6_port_src);
+
+		/* fragment it or not? */
+		if (payload_size > MTU - sizeof(struct s_ipv6)) {
+			/* 1st fragments' payload size must be 8-byte aligned */
+			#define FRAGMENT_LEN (((MTU - sizeof(struct s_ipv6) - \
+				sizeof(struct s_ipv6_fragment)) / 8) * 8)
+
+			/* fill in missing IPv6 header fields */
+			ip6->len	 = htons(FRAGMENT_LEN +
+						sizeof(struct s_ipv6_fragment));
+			ip6->next_header = IPPROTO_FRAGMENT;
+
+			/* create IPv6 fragment header */
+			frag = (struct s_ipv6_fragment *) ((unsigned char *) ip6
+			       + sizeof(struct s_ipv6));
+			frag->next_header = IPPROTO_TCP;
+			frag->zeros	  = 0x0;
+			frag->offset_flag = htons(IPV6_FLAG_MORE_FRAGMENTS);
+			frag->id	  = ip4->id ? htonl(htons(ip4->id)) :
+						      (unsigned int) rand();
+
+			/* copy the payload data */
+			memcpy((unsigned char *) frag +
+			       sizeof(struct s_ipv6_fragment),
+			       payload, FRAGMENT_LEN);
+
+			/* send translated packet */
+			transmit_raw(packet, sizeof(struct s_ethernet) +
+					     sizeof(struct s_ipv6) +
+					     sizeof(struct s_ipv6_fragment) +
+					     FRAGMENT_LEN);
+
+			/* create the second fragment */
+			ip6->len = htons(payload_size +
+					 sizeof(struct s_ipv6_fragment) -
+					 FRAGMENT_LEN);
+			frag->offset_flag = htons((FRAGMENT_LEN / 8) << 3);
+
+			/* copy the payload data */
+			memcpy((unsigned char *) frag +
+			       sizeof(struct s_ipv6_fragment),
+			       payload + FRAGMENT_LEN,
+			       payload_size - FRAGMENT_LEN);
+
+			/* send translated packet */
+			transmit_raw(packet, sizeof(struct s_ethernet) +
+					     sizeof(struct s_ipv6) +
+					     sizeof(struct s_ipv6_fragment) -
+					     FRAGMENT_LEN + payload_size);
+		} else {
+			ip6->len	 = htons(payload_size);
+			ip6->next_header = IPPROTO_TCP;
+
+			/* copy the payload data */
+			memcpy((unsigned char *) ip6 + sizeof(struct s_ipv6),
+			       payload, payload_size);
+
+			/* send translated packet */
+			transmit_raw(packet, sizeof(struct s_ethernet) +
+				     sizeof(struct s_ipv6) + payload_size);
+		}
+	} else {
+		/* TODO: handle all fragments */
+		printf("[Debug] Can't handle fragments :c(\n");
 		return 1;
 	}
-
-	/* allocate memory for translated packet */
-	if ((packet = (unsigned char *) malloc(sizeof(struct s_ethernet) +
-					       sizeof(struct s_ipv6) +
-					       payload_size)) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
-		return 1;
-	}
-	eth6 = (struct s_ethernet *) packet;
-	ip6 = (struct s_ipv6 *) (packet + sizeof(struct s_ethernet));
-
-	/* build ethernet header */
-	eth6->dest		= connection->mac;
-	eth6->src		= mac;
-	eth6->type		= htons(ETHERTYPE_IPV6);
-
-	/* build IPv6 packet */
-	ip6->ver		= 0x60;
-	ip6->traffic_class	= 0x0;
-	ip6->flow_label		= 0x0;
-	ip6->len		= htons(payload_size);
-	ip6->next_header	= IPPROTO_TCP;
-	ip6->hop_limit		= ip4->ttl;
-	ipv4_to_ipv6(&ip4->ip_src, &ip6->ip_src);
-	memcpy(&ip6->ip_dest, &connection->ipv6, sizeof(struct s_ipv6_addr));
-
-	/* set incoming source port */
-	tcp->port_dest = connection->ipv6_port_src;
-
-	/* compute TCP checksum */
-	tcp->checksum = checksum_ipv6_update(tcp->checksum,
-					     ip4->ip_src, ip4->ip_dest,
-					     connection->ipv4_port_src,
-					     ip6->ip_src, ip6->ip_dest,
-					     connection->ipv6_port_src);
-
-	/* copy the payload data (with new checksum) */
-	memcpy(packet + sizeof(struct s_ethernet) + sizeof(struct s_ipv6),
-	       payload, payload_size);
-
-	/* send translated packet */
-	transmit_raw(packet, sizeof(struct s_ethernet) + sizeof(struct s_ipv6) +
-		     payload_size);
 
 	/* clean-up */
 	free(packet);

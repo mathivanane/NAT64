@@ -22,6 +22,8 @@
 #include "ipv4.h"
 #include "ipv6.h"
 
+#define MTU 1280
+
 extern struct ifreq		interface;
 extern struct s_mac_addr	mac;
 extern struct s_ipv6_addr	ndp_multicast_addr;

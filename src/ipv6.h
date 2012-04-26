@@ -21,6 +21,8 @@
 
 #include "ethernet.h"		/* s_ethernet */
 
+#define IPV6_FLAG_MORE_FRAGMENTS	0x0001
+
 /* IPv6 address structure */
 struct s_ipv6_addr {
 	unsigned char		addr[16];
@@ -36,6 +38,17 @@ struct s_ipv6 {
 	unsigned char		hop_limit;	/*   8 b; hop limit (aka TTL) */
 	struct s_ipv6_addr	ip_src;		/* 128 b; source address */
 	struct s_ipv6_addr	ip_dest;	/* 128 b; destination address */
+} __attribute__ ((__packed__));
+
+/* IPv6 fragment header structure */
+struct s_ipv6_fragment {
+	unsigned char		next_header;	/*  8 b; next header */
+	unsigned char		zeros;		/*  8 b; reserved */
+	unsigned short		offset_flag;	/* 13 b; fragment offset in B,
+						    2 b; reserved,
+						    1 b; flag */
+	unsigned int		id;		/* 32 b; id of the packet
+							 (for fragmentation) */
 } __attribute__ ((__packed__));
 
 /* IPv6 pseudoheader structure for checksum */
