@@ -44,7 +44,7 @@
  * @return	0 for success
  * @return	1 for failure
  */
-int udp_ipv4(struct s_ethernet *eth, struct s_ipv4 *ip4, char *payload,
+int udp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	     unsigned short payload_size)
 {
 	struct s_udp  *udp;
@@ -147,7 +147,7 @@ int udp_ipv4(struct s_ethernet *eth, struct s_ipv4 *ip4, char *payload,
  * @return	0 for success
  * @return	1 for failure
  */
-int udp_ipv6(struct s_ethernet *eth, struct s_ipv6 *ip6, char *payload)
+int udp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 {
 	struct s_udp  *udp;
 	struct s_nat  *connection;
@@ -173,7 +173,7 @@ int udp_ipv6(struct s_ethernet *eth, struct s_ipv6 *ip6, char *payload)
 	}
 
 	/* find connection in NAT */
-	connection = nat_out(nat6_udp, nat4_udp, eth->src,
+	connection = nat_out(nat6_udp, nat4_udp, eth6->src,
 			     ip6->ip_src, ip6->ip_dest,
 			     udp->port_src, udp->port_dest);
 

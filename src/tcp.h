@@ -33,8 +33,8 @@ struct s_tcp {
 	unsigned short urgent_ptr;	/* 16 b; ptr to last urgent data byte */
 } __attribute__ ((__packed__));
 
-int tcp_ipv4(struct s_ethernet *eth, struct s_ipv4 *ip4, char *payload,
+int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	     unsigned short payload_size);
-int tcp_ipv6(struct s_ethernet *eth, struct s_ipv6 *ip6, char *payload);
+int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload);
 
 #endif /* TCP_H */

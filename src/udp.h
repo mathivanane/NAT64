@@ -27,8 +27,8 @@ struct s_udp {
 	unsigned short checksum;	/* 16 b; optional checksum */
 } __attribute__ ((__packed__));
 
-int udp_ipv4(struct s_ethernet *eth, struct s_ipv4 *ip4, char *payload,
+int udp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	     unsigned short payload_size);
-int udp_ipv6(struct s_ethernet *eth, struct s_ipv6 *ip6, char *payload);
+int udp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload);
 
 #endif /* UDP_H */
