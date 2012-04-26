@@ -1,0 +1,20 @@
+WrapSix
+=======
+
+About
+-----
+WrapSix is NAT64 and DNS64 implementation. It's available in open-source and
+commercial version.
+
+Status
+------
+WrapSix is under development. Branch 0.2 is working right now, but keep in mind
+that it's not yet ready for production and many things may not work. If you test
+it, please report to me any bugs you find.
+
+Contact
+-------
+Author:   xHire
+E-mail:   xhire -at- wrapsix.org
+IRC:      channel #wrapsix on chat.freenode.net
+Homepage: http://www.wrapsix.org/
