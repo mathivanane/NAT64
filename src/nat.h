@@ -38,7 +38,8 @@ struct s_nat {
 };
 
 extern radixtree_t *nat6_tcp, *nat6_udp, *nat6_icmp,
-		   *nat4_tcp, *nat4_udp, *nat4_icmp;
+		   *nat4_tcp, *nat4_udp, *nat4_icmp,
+		   *nat4_tcp_fragments;
 
 void nat_init(void);
 void nat_quit(void);
@@ -49,5 +50,10 @@ struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 		      unsigned short	 port_src, unsigned short     port_dst);
 struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
 		     unsigned short port_src, unsigned short port_dst);
+struct s_nat *nat_in_fragments(radixtree_t *nat_proto4,
+			       struct s_ipv4_addr ipv4_src,
+			       unsigned short id, struct s_nat *nat);
+void nat_in_fragments_clenup(radixtree_t *nat_proto4,
+			     struct s_ipv4_addr ipv4_src, unsigned short id);
 
 #endif /* NAT_H */

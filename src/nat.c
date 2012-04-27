@@ -41,8 +41,14 @@ struct s_radixtree_nat4 {
 	unsigned char		zeros;		/* unused space */
 } __attribute__ ((__packed__));
 
+struct s_radixtree_fragments4 {
+	struct s_ipv4_addr	addr;
+	unsigned short		id;
+} __attribute__ ((__packed__));
+
 radixtree_t *nat6_tcp, *nat6_udp, *nat6_icmp,
-	    *nat4_tcp, *nat4_udp, *nat4_icmp;
+	    *nat4_tcp, *nat4_udp, *nat4_icmp,
+	    *nat4_tcp_fragments;
 
 void nat_init(void)
 {
@@ -53,6 +59,8 @@ void nat_init(void)
 	nat4_tcp  = radixtree_create();
 	nat4_udp  = radixtree_create();
 	nat4_icmp = radixtree_create();
+
+	nat4_tcp_fragments = radixtree_create();
 }
 
 void nat_quit(void)
@@ -66,6 +74,9 @@ void nat_quit(void)
 	radixtree_destroy(nat4_tcp,  12);
 	radixtree_destroy(nat4_udp,  12);
 	radixtree_destroy(nat4_icmp, 12);
+
+	/* 32 + 16 = 48 / 6 = 8 */
+	radixtree_destroy(nat4_tcp_fragments, 8);
 }
 
 struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
@@ -145,5 +156,86 @@ struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
 		/* when connection is found, refresh it and return */
 		result->last_packet = time(NULL);
 		return result;
+	}
+}
+
+/**
+ * Save and retrieve NATted connections via fragment identification.
+ *
+ * @param	nat_proto4	Radix tree of fragments
+ * @param	ipv4_src	Source IPv4 address
+ * @param	id		Fragment identification
+ * @param	nat		Connection to save
+ *
+ * @return			Connection
+ */
+struct s_nat *nat_in_fragments(radixtree_t *nat_proto4,
+			       struct s_ipv4_addr ipv4_src,
+			       unsigned short id, struct s_nat *nat)
+{
+	struct s_nat *result;
+
+	/* create structure to search in the tree */
+	struct s_radixtree_fragments4 radixsearch4;
+	radixsearch4.addr = ipv4_src;
+	radixsearch4.id = id;
+
+	if ((result = (struct s_nat *) radixtree_lookup(nat_proto4,
+	    radixtree_chunker, &radixsearch4, sizeof(radixsearch4))) == NULL) {
+		if (nat != NULL) {
+			/* when fragmentation is not found, add one */
+			radixtree_insert(nat_proto4, radixtree_chunker,
+					 &radixsearch4, sizeof(radixsearch4),
+					 nat);
+			return nat;
+		} else {
+			/* nothing found and nothing to be added */
+			return NULL;
+		}
+	} else {
+		if (nat != NULL) {
+			/* when fragmentation is found, is it the same? */
+			if (result == nat) {
+				/* OK, return */
+				return result;
+			} else {
+				/* sender determines usage of IDs, so this one
+				 * shouldn't be used anymore for that
+				 * connection */
+				radixtree_delete(nat_proto4, radixtree_chunker,
+						 &radixsearch4,
+						 sizeof(radixsearch4));
+				radixtree_insert(nat_proto4, radixtree_chunker,
+						 &radixsearch4,
+						 sizeof(radixsearch4), nat);
+				return nat;
+			}
+		} else {
+			/* refresh it's connection and return */
+			result->last_packet = time(NULL);
+			return result;
+		}
+	}
+}
+
+/**
+ * Remove one entry from "fragment NAT".
+ *
+ * @param	nat_proto4	Radix tree of fragments
+ * @param	ipv4_src	Source IPv4 address
+ * @param	id		Fragment identification
+ */
+void nat_in_fragments_clenup(radixtree_t *nat_proto4,
+			     struct s_ipv4_addr ipv4_src, unsigned short id)
+{
+	/* create structure to search in the tree */
+	struct s_radixtree_fragments4 radixsearch4;
+	radixsearch4.addr = ipv4_src;
+	radixsearch4.id = id;
+
+	if (radixtree_lookup(nat_proto4, radixtree_chunker, &radixsearch4,
+	    sizeof(radixsearch4)) != NULL) {
+		radixtree_delete(nat_proto4, radixtree_chunker, &radixsearch4,
+				 sizeof(radixsearch4));
 	}
 }

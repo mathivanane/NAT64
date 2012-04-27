@@ -93,6 +93,12 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 			return 1;
 		}
 
+		/* if it's fragmented, save it to fragments table */
+		if (ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS)) {
+			nat_in_fragments(nat4_tcp_fragments, ip4->ip_src,
+					 ip4->id, connection);
+		}
+
 		/* allocate enough memory for translated packet */
 		if ((packet = (unsigned char *) malloc(
 		    payload_size > MTU - sizeof(struct s_ipv6) ?
@@ -190,9 +196,124 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 				     sizeof(struct s_ipv6) + payload_size);
 		}
 	} else {
-		/* TODO: handle all fragments */
-		printf("[Debug] Can't handle fragments :c(\n");
-		return 1;
+		/* find connection in fragments table */
+		connection = nat_in_fragments(nat4_tcp_fragments, ip4->ip_src,
+					      ip4->id, NULL);
+
+		if (connection == NULL) {
+			printf("[Debug] Incoming connection wasn't found in "
+			       "fragments table\n");
+			return 1;
+		}
+
+		/* allocate enough memory for translated packet */
+		if ((packet = (unsigned char *) malloc(
+		    payload_size > MTU - sizeof(struct s_ipv6) -
+		    sizeof(struct s_ipv6_fragment) ?
+		    MTU + sizeof(struct s_ethernet) :
+		    sizeof(struct s_ethernet) + sizeof(struct s_ipv6) +
+		    sizeof(struct s_ipv6_fragment) + payload_size)) == NULL) {
+			fprintf(stderr, "[Error] Lack of free memory\n");
+			return 1;
+		}
+		eth6 = (struct s_ethernet *) packet;
+		ip6 = (struct s_ipv6 *) (packet + sizeof(struct s_ethernet));
+		frag = (struct s_ipv6_fragment *) ((unsigned char *) ip6 +
+						   sizeof(struct s_ipv6));
+
+		/* build ethernet header */
+		eth6->dest		= connection->mac;
+		eth6->src		= mac;
+		eth6->type		= htons(ETHERTYPE_IPV6);
+
+		/* build IPv6 header */
+		ip6->ver		= 0x60 | (ip4->tos >> 4);
+		ip6->traffic_class	= ip4->tos << 4;
+		ip6->flow_label		= 0x0;
+		ip6->hop_limit		= ip4->ttl;
+		ip6->next_header	= IPPROTO_FRAGMENT;
+		ipv4_to_ipv6(&ip4->ip_src, &ip6->ip_src);
+		memcpy(&ip6->ip_dest, &connection->ipv6,
+		       sizeof(struct s_ipv6_addr));
+
+		/* build IPv6 fragment header */
+		frag->next_header	= IPPROTO_TCP;
+		frag->zeros		= 0x0;
+		frag->id		= htonl(htons(ip4->id));
+
+		/* fragment the fragment or not? */
+		if (payload_size > MTU - sizeof(struct s_ipv6) -
+		    sizeof(struct s_ipv6_fragment)) {
+			/* fill in missing IPv6 header fields */
+			ip6->len = htons(FRAGMENT_LEN +
+					 sizeof(struct s_ipv6_fragment));
+
+			/* fill in missing IPv6 fragment header fields */
+			frag->offset_flag = htons((htons(ip4->flags_offset) << 3) |
+						  IPV6_FLAG_MORE_FRAGMENTS);
+
+			/* copy the payload data */
+			memcpy((unsigned char *) frag +
+			       sizeof(struct s_ipv6_fragment),
+			       payload, FRAGMENT_LEN);
+
+			/* send translated packet */
+			transmit_raw(packet, sizeof(struct s_ethernet) + MTU);
+
+			/* create the second fragment */
+			ip6->len = htons(payload_size +
+					 sizeof(struct s_ipv6_fragment) -
+					 FRAGMENT_LEN);
+			frag->offset_flag = htons((htons(ip4->flags_offset) +
+						  FRAGMENT_LEN / 8) << 3);
+			if (ip4->flags_offset &
+			    htons(IPV4_FLAG_MORE_FRAGMENTS)) {
+				frag->offset_flag |=
+					htons(IPV6_FLAG_MORE_FRAGMENTS);
+			}
+
+			/* copy the payload data */
+			memcpy((unsigned char *) frag +
+			       sizeof(struct s_ipv6_fragment),
+			       payload + FRAGMENT_LEN,
+			       payload_size - FRAGMENT_LEN);
+
+			/* send translated packet */
+			transmit_raw(packet, sizeof(struct s_ethernet) +
+					     sizeof(struct s_ipv6) +
+					     sizeof(struct s_ipv6_fragment) -
+					     FRAGMENT_LEN + payload_size);
+		} else {
+			/* fill in missing IPv6 header fields */
+			ip6->len = htons(payload_size +
+					 sizeof(struct s_ipv6_fragment));
+
+			/* fill in missing IPv6 fragment header fields */
+			frag->offset_flag = htons(htons(ip4->flags_offset) << 3);
+			if (ip4->flags_offset &
+			    htons(IPV4_FLAG_MORE_FRAGMENTS)) {
+				frag->offset_flag |=
+					htons(IPV6_FLAG_MORE_FRAGMENTS);
+			}
+
+			/* copy the payload data */
+			memcpy((unsigned char *) ip6 + sizeof(struct s_ipv6) +
+			       sizeof(struct s_ipv6_fragment),
+			       payload, payload_size);
+
+			/* send translated packet */
+			transmit_raw(packet, sizeof(struct s_ethernet) +
+				     sizeof(struct s_ipv6) +
+				     sizeof(struct s_ipv6_fragment) +
+				     payload_size);
+		}
+
+		/* if this is the last fragment, remove the entry from table */
+		if (!(ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS))) {
+			printf("[Debug] Removing fragment entry\n");
+			nat_in_fragments_clenup(nat4_tcp_fragments,
+						ip4->ip_src, ip4->id);
+		}
 	}
 
 	/* clean-up */
