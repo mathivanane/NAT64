@@ -30,15 +30,14 @@ typedef struct radixtree {
 radixtree_t *radixtree_create(void);
 void radixtree_destroy(radixtree_t *t, unsigned char depth);
 void radixtree_insert(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char *count),
-		      void *search_data, void *data);
+		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		      void *search_data, unsigned char size, void *data);
 void radixtree_delete(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char *count),
-		      void *data);
+		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		      void *data, unsigned char size);
 void *radixtree_lookup(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char *count),
-		      void *data);
-unsigned char *radixtree_ipv6_chunker(void *data, unsigned char *count);
-unsigned char *radixtree_ipv4_chunker(void *data, unsigned char *count);
+		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		      void *data, unsigned char size);
+unsigned char *radixtree_chunker(void *data, unsigned char size, unsigned char *count);
 
 #endif /* RADIXTREE_H */

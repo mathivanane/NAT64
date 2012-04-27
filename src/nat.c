@@ -85,7 +85,7 @@ struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 	radixsearch6.port_dst = port_dst;
 
 	if ((result = (struct s_nat *) radixtree_lookup(nat_proto6,
-	    radixtree_ipv6_chunker, &radixsearch6)) == NULL) {
+	    radixtree_chunker, &radixsearch6, sizeof(radixsearch6))) == NULL) {
 		/* if no connection is found, let's create one */
 		if ((connection =
 		    (struct s_nat *) malloc(sizeof(struct s_nat))) == NULL) {
@@ -109,14 +109,14 @@ struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 			/* returns port from range 1024 - 65535 */
 			radixsearch4.port_dst = (rand() % 64511) + 1024;
 
-			result = radixtree_lookup(nat_proto4, radixtree_ipv4_chunker, &radixsearch4);
+			result = radixtree_lookup(nat_proto4, radixtree_chunker, &radixsearch4, sizeof(radixsearch4));
 		} while (result != NULL);
 
 		connection->ipv4_port_src = radixsearch4.port_dst;
 
 		/* save this connection to the NAT table (to *both* of them) */
-		radixtree_insert(nat_proto6, radixtree_ipv6_chunker, &radixsearch6, connection);
-		radixtree_insert(nat_proto4, radixtree_ipv4_chunker, &radixsearch4, connection);
+		radixtree_insert(nat_proto6, radixtree_chunker, &radixsearch6, sizeof(radixsearch6), connection);
+		radixtree_insert(nat_proto4, radixtree_chunker, &radixsearch4, sizeof(radixsearch4), connection);
 
 		return connection;
 	} else {
@@ -138,7 +138,7 @@ struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
 	radixsearch4.port_dst = port_dst;
 	radixsearch4.zeros = 0x0;
 
-	if ((result = (struct s_nat *) radixtree_lookup(nat_proto4, radixtree_ipv4_chunker, &radixsearch4)) == NULL) {
+	if ((result = (struct s_nat *) radixtree_lookup(nat_proto4, radixtree_chunker, &radixsearch4, sizeof(radixsearch4))) == NULL) {
 		/* when connection is not found, drop the packet */
 		return NULL;
 	} else {

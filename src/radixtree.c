@@ -52,14 +52,14 @@ void radixtree_destroy(radixtree_t *t, unsigned char depth)
 }
 
 void radixtree_insert(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char *count),
-		      void *search_data, void *data)
+		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		      void *search_data, unsigned char size, void *data)
 {
 	radixtree_t *tmp;
 	unsigned char i, chunk_count;
 	unsigned char *chunks;
 
-	chunks = chunker(search_data, &chunk_count);
+	chunks = chunker(search_data, size, &chunk_count);
 
 	tmp = root;
 	tmp->count++;
@@ -86,71 +86,57 @@ void radixtree_insert(radixtree_t *root,
 }
 
 void radixtree_delete(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char *count),
-		      void *data)
+		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		      void *data, unsigned char size)
 {
 	radixtree_t *tmp,
 		    *next;
 	unsigned char i, chunk_count;
 	unsigned char *chunks;
+	unsigned int flags = 0;
 
-	chunks = chunker(data, &chunk_count);
+	chunks = chunker(data, size, &chunk_count);
+
+	for (i = 0, tmp = root; i < chunk_count && tmp != NULL; i++, tmp = tmp->array[chunks[i]]) {
+		flags = tmp->count == 1 ? flags | (0x1 << i) : 0;
+
+		if (i + 1 == chunk_count) {
+			break;
+		}
+	}
+
+	/* if was at leaf, decrement counter */
+	if (i + 1 == chunk_count) {
+		tmp->count--;
+	}
 
 	tmp = root;
-	tmp->count--;
+	flags &= 0xfffffffe;	/* unflag root */
 
 	for (i = 0; i < chunk_count; i++) {
-		unsigned char id;
-
-		id = chunks[i];
-
-		/* already deleted? may cause data inconsistency! */
-		if (tmp->array[id] == NULL) {
-			return;
+		next = tmp->array[chunks[i]];
+		if (flags & (0x1 << (i + 1))) {
+			tmp->array[chunks[i]] = NULL;
+			tmp->count--;
 		}
-
-		if (i == chunk_count - 1) {
-			if (tmp->count == 0) {
-				free(tmp);
-			} else {
-				tmp->array[id] = NULL;
-			}
-
-			/**
-			 * now you *have to* call free on data too
-			 * but probably not here...
-			 **/
-
-			return;
-		}
-
-		next = tmp->array[id];
-
-		/* if it is the last entry in this tree branch */
-		if (next->count == 1) {
-			tmp->array[id] = NULL;
-		}
-
-		if (i != 0 && tmp->count == 0) {
+		if (flags & (0x1 << i)) {
 			free(tmp);
 		}
-
 		tmp = next;
-		tmp->count--;
 	}
 
 	free(chunks);
 }
 
 void *radixtree_lookup(radixtree_t *root,
-		       unsigned char *(chunker)(void *data, unsigned char *count),
-		       void *data)
+		       unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		       void *data, unsigned char size)
 {
 	radixtree_t *tmp;
 	unsigned char i, chunk_count, id;
 	unsigned char *chunks;
 
-	chunks = chunker(data, &chunk_count);
+	chunks = chunker(data, size, &chunk_count);
 
 	tmp = root;
 
@@ -177,14 +163,24 @@ void *radixtree_lookup(radixtree_t *root,
 	/* we never get here ;c) */
 }
 
-unsigned char *radixtree_ipv6_chunker(void *data, unsigned char *count)
+/**
+ * Universal chunker.
+ *
+ * @param	data	Data to chunk
+ * @param	size	Size of the data; must be divisible by 3
+ * @param	count	Variable into which is put information about number of
+ * 			chunks produced
+ *
+ * @return		Array of chunks
+ */
+unsigned char *radixtree_chunker(void *data, unsigned char size, unsigned char *count)
 {
 	short i;
 	unsigned char counter;
 	unsigned char *chunks;
 	unsigned char *cdata = (unsigned char *) data;
 
-	counter = 192 / 6;
+	counter = size * 8 / 6;
 	memcpy(count, &counter, sizeof(unsigned char));
 
 	if ((chunks = (unsigned char *) malloc(counter * sizeof(unsigned char))) == NULL) {
@@ -202,33 +198,7 @@ unsigned char *radixtree_ipv6_chunker(void *data, unsigned char *count)
 	 * 240 == 1111 0000 == 0xf0
 	 * 252 == 1111 1100 == 0xfc
 	 */
-	for (i = 0, counter = 0; counter < *count; i++) {
-		chunks[counter++] = cdata[i] & 0x3f;
-		chunks[counter++] = ((cdata[i] & 0xc0) >> 6) | ((cdata[i + 1] & 0x0f) << 2);
-		i++;
-		chunks[counter++] = ((cdata[i] & 0xf0) >> 4) | ((cdata[i + 1] & 0x03) << 4);
-		i++;
-		chunks[counter++] = ((cdata[i] & 0xfc) >> 2);
-	}
-
-	return chunks;
-}
-
-unsigned char *radixtree_ipv4_chunker(void *data, unsigned char *count)
-{
-	short i;
-	unsigned char counter;
-	unsigned char *chunks;
-	unsigned char *cdata = (unsigned char *) data;
-
-	counter = 72 / 6;
-	memcpy(count, &counter, sizeof(unsigned char));
-
-	if ((chunks = (unsigned char *) malloc(counter * sizeof(unsigned char))) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
-		return NULL;
-	}
-
+	/* processes 3 bytes at a time */
 	for (i = 0, counter = 0; counter < *count; i++) {
 		chunks[counter++] = cdata[i] & 0x3f;
 		chunks[counter++] = ((cdata[i] & 0xc0) >> 6) | ((cdata[i + 1] & 0x0f) << 2);
