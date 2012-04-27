@@ -116,7 +116,7 @@ int transmission_quit(void)
  */
 int transmit_raw(unsigned char *data, unsigned int length)
 {
-	if (sendto(sock, data, length, 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) != length) {
+	if (sendto(sock, data, length, 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) != (int) length) {
 		fprintf(stderr, "[Error] Couldn't send a RAW packet.\n");
 		perror("sendto()");
 		return 1;
@@ -140,7 +140,7 @@ int transmit_ipv4(struct s_ipv4_addr *ip, unsigned char *data, unsigned int leng
 	/* set the destination IPv4 address */
 	memcpy(&socket_address_ipv4.sin_addr.s_addr, ip, sizeof(struct s_ipv4_addr));
 
-	if (sendto(sock_ipv4, data, length, 0, (struct sockaddr *) &socket_address_ipv4, sizeof(struct sockaddr)) != length) {
+	if (sendto(sock_ipv4, data, length, 0, (struct sockaddr *) &socket_address_ipv4, sizeof(struct sockaddr)) != (int) length) {
 		fprintf(stderr, "[Error] Couldn't send an IPv4 packet.\n");
 		perror("sendto()");
 		return 1;
