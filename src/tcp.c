@@ -219,7 +219,6 @@ int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 	unsigned short orig_checksum;
 	struct s_ipv4 *ip4;
 	unsigned char *packet;
-	unsigned int   packet_size;
 
 	/* parse TCP header */
 	tcp = (struct s_tcp *) payload;
@@ -249,8 +248,8 @@ int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 	}
 
 	/* allocate memory for translated packet */
-	packet_size = sizeof(struct s_ipv4) + ip6->len;
-	if ((packet = (unsigned char *) malloc(packet_size)) == NULL) {
+	if ((packet = (unsigned char *) malloc(sizeof(struct s_ipv4) +
+	    htons(ip6->len))) == NULL) {
 		fprintf(stderr, "[Error] Lack of free memory\n");
 		return 1;
 	}
