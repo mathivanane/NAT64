@@ -26,6 +26,15 @@
 #include "udp.h"
 #include "wrapper.h"
 
+/**
+ * Processing of IPv4 packets.
+ *
+ * @param	eth	Ethernet header
+ * @param	packet	Packet data
+ *
+ * @return	0 for success
+ * @return	1 for failure
+ */
 int ipv4(struct s_ethernet *eth, char *packet)
 {
 	struct s_ipv4	*ip;
@@ -42,8 +51,6 @@ int ipv4(struct s_ethernet *eth, char *packet)
 		return 1;
 	}
 
-	/* TODO: verify checksum */
-
 	/* compute sizes and get payload */
 	header_size = (ip->ver_hdrlen & 0x0f) * 4;	/* # of 4 byte words */
 	data_size = htons(ip->len) - header_size;
@@ -52,21 +59,16 @@ int ipv4(struct s_ethernet *eth, char *packet)
 	switch (ip->proto) {
 		case IPPROTO_TCP:
 			printf("[Debug] IPv4 Protocol: TCP\n");
-			tcp_ipv4(eth, ip, payload, data_size);
-			break;
+			return tcp_ipv4(eth, ip, payload, data_size);
 		case IPPROTO_UDP:
 			printf("[Debug] IPv4 Protocol: UDP\n");
-			udp_ipv4(eth, ip, payload, data_size);
-			break;
+			return udp_ipv4(eth, ip, payload, data_size);
 		case IPPROTO_ICMP:
 			printf("[Debug] IPv4 Protocol: ICMP\n");
-			icmp_ipv4(eth, ip, payload, data_size);
-			break;
+			return icmp_ipv4(eth, ip, payload, data_size);
 		default:
 			printf("[Debug] IPv4 Protocol: unknown [%d/0x%x]\n",
 			       ip->proto, ip->proto);
 			return 1;
 	}
-
-	return 0;
 }

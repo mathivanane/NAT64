@@ -22,6 +22,11 @@
 
 #include "radixtree.h"
 
+/**
+ * Creates root of radix tree.
+ *
+ * @return     Root of new radix tree
+ */
 radixtree_t *radixtree_create(void)
 {
 	radixtree_t *radixtree;
@@ -36,21 +41,36 @@ radixtree_t *radixtree_create(void)
 	return radixtree;
 }
 
-void radixtree_destroy(radixtree_t *t, unsigned char depth)
+/**
+ * Destroys a radix tree.
+ *
+ * @param      root    Root of the tree to destroy
+ * @param      depth   Depth of the tree
+ */
+void radixtree_destroy(radixtree_t *root, unsigned char depth)
 {
 	unsigned char i;
 
 	for (i = 0; i < ARRAY_SIZE; i++) {
-		if (depth != 1 && t->array[i] != NULL) {
-			radixtree_destroy(t->array[i], depth - 1);
+		if (depth != 1 && root->array[i] != NULL) {
+			radixtree_destroy(root->array[i], depth - 1);
 		} else if (depth == 1) {
-			free(t->array[i]);
+			free(root->array[i]);
 		}
 	}
 
-	free(t);
+	free(root);
 }
 
+/**
+ * Inserts new data entry into the tree.
+ *
+ * @param      root            Root of the radix tree
+ * @param      chunker         Function to use to get chunks for indexing internal array
+ * @param      search_data     Key used to search in the tree
+ * @param      size            Length of the key
+ * @param      data            Data to store in the tree
+ */
 void radixtree_insert(radixtree_t *root,
 		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
 		      void *search_data, unsigned char size, void *data)
@@ -85,6 +105,14 @@ void radixtree_insert(radixtree_t *root,
 	free(chunks);
 }
 
+/**
+ * Deletes an entry from the tree.
+ *
+ * @param      root            Root of the radix tree
+ * @param      chunker         Function to use to get chunks for indexing internal array
+ * @param      data            Key used to search in the tree
+ * @param      size            Length of the key
+ */
 void radixtree_delete(radixtree_t *root,
 		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
 		      void *data, unsigned char size)
@@ -97,7 +125,7 @@ void radixtree_delete(radixtree_t *root,
 
 	chunks = chunker(data, size, &chunk_count);
 
-	for (i = 0, tmp = root; i < chunk_count && tmp != NULL; i++, tmp = tmp->array[chunks[i]]) {
+	for (i = 0, tmp = root; i < chunk_count && tmp != NULL; tmp = tmp->array[chunks[i++]]) {
 		flags = tmp->count == 1 ? flags | (0x1 << i) : 0;
 
 		if (i + 1 == chunk_count) {
@@ -128,6 +156,14 @@ void radixtree_delete(radixtree_t *root,
 	free(chunks);
 }
 
+/**
+ * Lookups an entry in the tree.
+ *
+ * @param      root            Root of the radix tree
+ * @param      chunker         Function to use to get chunks for indexing internal array
+ * @param      data            Key used to search in the tree
+ * @param      size            Length of the key
+ */
 void *radixtree_lookup(radixtree_t *root,
 		       unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
 		       void *data, unsigned char size)

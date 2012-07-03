@@ -22,7 +22,9 @@
 #include "ipv4.h"
 #include "ipv6.h"
 
+/* +++ CONFIGURE +++ */
 #define MTU 1280
+/* --- CONFIGURE --- */
 
 extern struct ifreq		interface;
 extern struct s_mac_addr	mac;

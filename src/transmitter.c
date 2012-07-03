@@ -18,7 +18,8 @@
 
 #include <net/if.h>		/* struct ifreq */
 #include <netinet/if_ether.h>	/* {P,A}F_PACKET, ETH_P_*, socket, SOCK_RAW,
-				 * setsockopt, SOL_SOCKET, SO_BINDTODEVICE, sendto */
+				 * setsockopt, SOL_SOCKET, SO_BINDTODEVICE,
+				 * sendto */
 #include <netinet/in.h>		/* htons */
 #include <netpacket/packet.h>	/* sockaddr_ll, PACKET_OTHERHOST */
 #include <stdio.h>		/* fprintf, stderr, perror */
@@ -34,7 +35,8 @@ struct sockaddr_in	socket_address_ipv4;
 int			sock, sock_ipv4;
 
 /**
- * Initialize socket and all needed properties. Should be called only once on program startup.
+ * Initialize sockets and all needed properties. Should be called only once on
+ * program startup.
  *
  * @return		0 for success
  * @return		1 for failure
@@ -45,10 +47,10 @@ int transmission_init(void)
 
 	/** RAW socket **/
 	/* prepare settings for RAW socket */
-	socket_address.sll_family	= PF_PACKET;			/* RAW communication */
-	socket_address.sll_protocol	= htons(ETH_P_IP);		/* protocol above the ethernet layer */
-	socket_address.sll_ifindex	= interface.ifr_ifindex;	/* set index of the network device */
-	socket_address.sll_pkttype	= PACKET_OTHERHOST;		/* target host is another host */
+	socket_address.sll_family	= PF_PACKET;	/* raw communication */
+	socket_address.sll_protocol	= htons(ETH_P_IP);	/* L3 proto */
+	socket_address.sll_ifindex	= interface.ifr_ifindex;
+	socket_address.sll_pkttype	= PACKET_OTHERHOST;
 
 	/* initialize RAW socket */
 	if ((sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
@@ -58,8 +60,10 @@ int transmission_init(void)
 	}
 
 	/* bind the socket to the interface */
-	if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, &interface, sizeof(struct ifreq)) == -1) {
-		fprintf(stderr, "[Error] Couldn't bind the socket to the interface.\n");
+	if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, &interface,
+	    sizeof(struct ifreq)) == -1) {
+		fprintf(stderr, "[Error] Couldn't bind the socket to the "
+				"interface.\n");
 		perror("setsockopt()");
 		return 1;
 	}
@@ -78,8 +82,10 @@ int transmission_init(void)
 	}
 
 	/* we will provide our own IPv4 header */
-	if (setsockopt(sock_ipv4, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) == -1) {
-		fprintf(stderr, "[Error] Couldn't apply the socket settings.\n");
+	if (setsockopt(sock_ipv4, IPPROTO_IP, IP_HDRINCL, &on,
+	    sizeof(on)) == -1) {
+		fprintf(stderr, "[Error] Couldn't apply the socket "
+				"settings.\n");
 		perror("setsockopt()");
 		return 1;
 	}
@@ -88,7 +94,7 @@ int transmission_init(void)
 }
 
 /**
- * Close socket. Should be called only once on program shutdown.
+ * Close sockets. Should be called only once on program shutdown.
  *
  * @return		0 for success
  * @return		1 for failure
@@ -97,7 +103,8 @@ int transmission_quit(void)
 {
 	/* close the socket */
 	if (close(sock) || close(sock_ipv4)) {
-		fprintf(stderr, "[Error] Couldn't close the transmission sockets.\n");
+		fprintf(stderr, "[Error] Couldn't close the transmission "
+				"sockets.\n");
 		perror("close()");
 		return 1;
 	} else {
@@ -116,7 +123,8 @@ int transmission_quit(void)
  */
 int transmit_raw(unsigned char *data, unsigned int length)
 {
-	if (sendto(sock, data, length, 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) != (int) length) {
+	if (sendto(sock, data, length, 0, (struct sockaddr *) &socket_address,
+	    sizeof(struct sockaddr_ll)) != (int) length) {
 		fprintf(stderr, "[Error] Couldn't send a RAW packet.\n");
 		perror("sendto()");
 		return 1;
@@ -129,18 +137,23 @@ int transmit_raw(unsigned char *data, unsigned int length)
  * Send IPv4 packet with IPv4 header supplied. Ethernet header is added by OS.
  *
  * @param	ip	Destination IPv4 address
- * @param	data	Raw packet data, excluding ethernet header, but including IPv4 header
+ * @param	data	Raw packet data, excluding ethernet header, but
+ * 			including IPv4 header
  * @param	length	Length of the whole packet in bytes
  *
  * @return		0 for success
  * @return		1 for failure
  */
-int transmit_ipv4(struct s_ipv4_addr *ip, unsigned char *data, unsigned int length)
+int transmit_ipv4(struct s_ipv4_addr *ip, unsigned char *data,
+		  unsigned int length)
 {
 	/* set the destination IPv4 address */
-	memcpy(&socket_address_ipv4.sin_addr.s_addr, ip, sizeof(struct s_ipv4_addr));
+	memcpy(&socket_address_ipv4.sin_addr.s_addr, ip,
+	       sizeof(struct s_ipv4_addr));
 
-	if (sendto(sock_ipv4, data, length, 0, (struct sockaddr *) &socket_address_ipv4, sizeof(struct sockaddr)) != (int) length) {
+	if (sendto(sock_ipv4, data, length, 0,
+	    (struct sockaddr *) &socket_address_ipv4,
+	    sizeof(struct sockaddr)) != (int) length) {
 		fprintf(stderr, "[Error] Couldn't send an IPv4 packet.\n");
 		perror("sendto()");
 		return 1;

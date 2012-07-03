@@ -57,12 +57,12 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	struct s_ipv6_fragment	*frag;
 
 	/* full processing of unfragmented packet or the first fragment with
-	 * TCP header with checksum field (this is safe)
+	 * TCP header
 	 */
 	if ((ip4->flags_offset & htons(IPV4_FLAG_DONT_FRAGMENT)) ||
 	    ((ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS)) &&
 	     (ip4->flags_offset & 0xff1f) == 0x0000 &&
-	     payload_size >= sizeof(struct s_tcp) - 2)) {
+	     payload_size >= sizeof(struct s_tcp))) {
 		/* parse TCP header */
 		tcp = (struct s_tcp *) payload;
 
@@ -249,8 +249,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 					 sizeof(struct s_ipv6_fragment));
 
 			/* fill in missing IPv6 fragment header fields */
-			frag->offset_flag = htons((htons(ip4->flags_offset) << 3) |
-						  IPV6_FLAG_MORE_FRAGMENTS);
+			frag->offset_flag = htons((htons(ip4->flags_offset) <<
+						  3) | IPV6_FLAG_MORE_FRAGMENTS);
 
 			/* copy the payload data */
 			memcpy((unsigned char *) frag +
@@ -264,7 +264,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 			ip6->len = htons(payload_size +
 					 sizeof(struct s_ipv6_fragment) -
 					 FRAGMENT_LEN);
-			frag->offset_flag = htons((htons(ip4->flags_offset) +
+			frag->offset_flag = htons(((htons(ip4->flags_offset) &
+						  0xfffc) +
 						  FRAGMENT_LEN / 8) << 3);
 			if (ip4->flags_offset &
 			    htons(IPV4_FLAG_MORE_FRAGMENTS)) {
@@ -378,7 +379,8 @@ int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 
 	/* build IPv4 packet */
 	ip4->ver_hdrlen	  = 0x45;		/* ver 4, header length 20 B */
-	ip4->tos	  = 0x0;
+	ip4->tos	  = ((ip6->ver & 0x0f) << 4) |
+			    ((ip6->traffic_class & 0xf0) >> 4);
 	ip4->len	  = htons(sizeof(struct s_ipv4) + htons(ip6->len));
 	ip4->id		  = 0x0;
 	ip4->flags_offset = htons(IPV4_FLAG_DONT_FRAGMENT);

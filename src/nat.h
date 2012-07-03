@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,7 +53,7 @@ struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
 struct s_nat *nat_in_fragments(radixtree_t *nat_proto4,
 			       struct s_ipv4_addr ipv4_src,
 			       unsigned short id, struct s_nat *nat);
-void nat_in_fragments_clenup(radixtree_t *nat_proto4,
-			     struct s_ipv4_addr ipv4_src, unsigned short id);
+void nat_in_fragments_cleanup(radixtree_t *nat_proto4,
+			      struct s_ipv4_addr ipv4_src, unsigned short id);
 
 #endif /* NAT_H */

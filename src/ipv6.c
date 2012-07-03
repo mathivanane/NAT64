@@ -26,6 +26,15 @@
 #include "udp.h"
 #include "wrapper.h"
 
+/**
+ * Processing of IPv6 packets.
+ *
+ * @param	eth	Ethernet header
+ * @param	packet	Packet data
+ *
+ * @return	0 for success
+ * @return	1 for failure
+ */
 int ipv6(struct s_ethernet *eth, char *packet)
 {
 	struct s_ipv6	*ip;
@@ -45,21 +54,16 @@ int ipv6(struct s_ethernet *eth, char *packet)
 	switch (ip->next_header) {
 		case IPPROTO_TCP:
 			printf("[Debug] IPv6 Protocol: TCP\n");
-			tcp_ipv6(eth, ip, payload);
-			break;
+			return tcp_ipv6(eth, ip, payload);
 		case IPPROTO_UDP:
 			printf("[Debug] IPv6 Protocol: UDP\n");
-			udp_ipv6(eth, ip, payload);
-			break;
+			return udp_ipv6(eth, ip, payload);
 		case IPPROTO_ICMPV6:
 			printf("[Debug] IPv6 Protocol: ICMP\n");
-			icmp_ipv6(eth, ip, payload);
-			break;
+			return icmp_ipv6(eth, ip, payload);
 		default:
 			printf("[Debug] IPv6 Protocol: unknown [%d/0x%x]\n",
 			       ip->next_header, ip->next_header);
 			return 1;
 	}
-
-	return 0;
 }

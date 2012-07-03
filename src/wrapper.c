@@ -37,10 +37,12 @@
 #include "transmitter.h"
 #include "wrapper.h"
 
-#define INTERFACE	"eth0"
-#define BUFFER_SIZE	65536
-#define PREFIX		"fd77::"
+-/* +++ CONFIGURATION +++ */
+#define INTERFACE	"eth0"	/* be sure to turn off generic-segmentation-offload! */
+#define PREFIX		"64:ff9b::"
 #define IPV4_ADDR	"192.168.0.111"
+/* --- CONFIGURATION --- */
+
 
 struct ifreq		interface;
 struct s_mac_addr	mac;

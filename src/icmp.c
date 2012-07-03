@@ -115,8 +115,8 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 	eth6->type		= htons(ETHERTYPE_IPV6);
 
 	/* build IPv6 packet */
-	ip6->ver		= 0x60;
-	ip6->traffic_class	= 0x0;
+	ip6->ver		= 0x60 | (ip4->tos >> 4);
+	ip6->traffic_class	= ip4->tos << 4;
 	ip6->flow_label		= 0x0;
 	ip6->len		= htons(payload_size);
 	ip6->next_header	= IPPROTO_ICMPV6;
@@ -228,7 +228,8 @@ int icmp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 
 	/* build IPv4 packet */
 	ip4->ver_hdrlen	  = 0x45;		/* ver 4, header length 20 B */
-	ip4->tos	  = 0x0;
+	ip4->tos	  = ((ip6->ver & 0x0f) << 4) |
+			    ((ip6->traffic_class & 0xf0) >> 4);
 	ip4->len	  = htons(sizeof(struct s_ipv4) + htons(ip6->len));
 	ip4->id		  = 0x0;
 	ip4->flags_offset = htons(IPV4_FLAG_DONT_FRAGMENT);
@@ -250,7 +251,6 @@ int icmp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 				      (unsigned char *) icmp);
 
 	/* send translated packet */
-	printf("[Debug] transmitting\n");
 	transmit_ipv4(&ip4->ip_dest, packet, htons(ip4->len));
 
 	/* clean-up */
@@ -320,8 +320,7 @@ int icmp_ndp(struct s_ethernet *ethq, struct s_ipv6 *ipq,
 
 	/* ICMP */
 	icmp->type = ICMPV6_NDP_NA;
-	icmp->code = 0;
-	icmp->checksum = 0;
+	/* code = checksum = 0 by memset */
 
 	/* NDP NA */
 	ndp_na->flags	 = INNAF_S;

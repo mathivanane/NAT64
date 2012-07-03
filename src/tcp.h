@@ -30,7 +30,6 @@ struct s_tcp {
 	unsigned char  flags;		/*  6 b; flags */
 	unsigned short window;		/* 16 b; size of the receive window */
 	unsigned short checksum;	/* 16 b */
-	unsigned short urgent_ptr;	/* 16 b; ptr to last urgent data byte */
 } __attribute__ ((__packed__));
 
 int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,

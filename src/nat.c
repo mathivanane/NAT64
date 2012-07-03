@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -50,6 +50,9 @@ radixtree_t *nat6_tcp, *nat6_udp, *nat6_icmp,
 	    *nat4_tcp, *nat4_udp, *nat4_icmp,
 	    *nat4_tcp_fragments;
 
+/**
+ * Initialization of NAT tables.
+ */
 void nat_init(void)
 {
 	nat6_tcp  = radixtree_create();
@@ -63,6 +66,9 @@ void nat_init(void)
 	nat4_tcp_fragments = radixtree_create();
 }
 
+/**
+ * Clean-up of NAT tables.
+ */
 void nat_quit(void)
 {
 	/* 128 + 16 + 32 + 16 = 192 / 6 = 32 */
@@ -79,6 +85,20 @@ void nat_quit(void)
 	radixtree_destroy(nat4_tcp_fragments, 8);
 }
 
+/**
+ * Lookup or create NAT connection for outgoing IPv6 packet.
+ *
+ * @param      nat_proto6      IPv6 NAT table
+ * @param      nat_proto4      IPv4 NAT table
+ * @param      eth_src         Source MAC address
+ * @param      ipv6_src        Source IPv6 address
+ * @param      ipv6_dst        Destination IPv6 address
+ * @param      port_src        Source port
+ * @param      port_dst        Destination port
+ *
+ * @return     NULL when it wasn't possible to create connection
+ * @return     pointer to connection structure otherwise
+ */
 struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 		      struct s_mac_addr eth_src,
 		      struct s_ipv6_addr ipv6_src, struct s_ipv6_addr ipv6_dst,
@@ -137,6 +157,17 @@ struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 	}
 }
 
+/**
+ * Lookup NAT connection for incoming IPv4 packet.
+ *
+ * @param      nat_proto4      NAT table
+ * @param      ipv4_src        Source IPv4 address
+ * @param      port_src        Source port
+ * @param      port_dst        Destination port
+ *
+ * @return     NULL when no connection was found
+ * @return     pointer to connection structure otherwise
+ */
 struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
 		     unsigned short port_src, unsigned short port_dst)
 {
@@ -225,8 +256,8 @@ struct s_nat *nat_in_fragments(radixtree_t *nat_proto4,
  * @param	ipv4_src	Source IPv4 address
  * @param	id		Fragment identification
  */
-void nat_in_fragments_clenup(radixtree_t *nat_proto4,
-			     struct s_ipv4_addr ipv4_src, unsigned short id)
+void nat_in_fragments_cleanup(radixtree_t *nat_proto4,
+			      struct s_ipv4_addr ipv4_src, unsigned short id)
 {
 	/* create structure to search in the tree */
 	struct s_radixtree_fragments4 radixsearch4;

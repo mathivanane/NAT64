@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -28,7 +28,7 @@ typedef struct radixtree {
 } radixtree_t;
 
 radixtree_t *radixtree_create(void);
-void radixtree_destroy(radixtree_t *t, unsigned char depth);
+void radixtree_destroy(radixtree_t *root, unsigned char depth);
 void radixtree_insert(radixtree_t *root,
 		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
 		      void *search_data, unsigned char size, void *data);
