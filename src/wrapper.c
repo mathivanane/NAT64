@@ -37,7 +37,7 @@
 #include "transmitter.h"
 #include "wrapper.h"
 
--/* +++ CONFIGURATION +++ */
+/* +++ CONFIGURATION +++ */
 #define INTERFACE	"eth0"	/* be sure to turn off generic-segmentation-offload! */
 #define PREFIX		"64:ff9b::"
 #define IPV4_ADDR	"192.168.0.111"
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 
 	int	sniff_sock;
 	int	length;
-	char	buffer[BUFFER_SIZE];
+	char	buffer[MTU];
 
 	/* initialize the socket for sniffing */
 	if ((sniff_sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
 	/* sniff! :c) */
 	for (;;) {
 		addr_size = sizeof(addr);
-		if ((length = recv(sniff_sock, buffer, BUFFER_SIZE, 0)) == -1) {
+		if ((length = recv(sniff_sock, buffer, MTU, 0)) == -1) {
 			fprintf(stderr, "[Error] Unable to retrieve data from socket\n");
 			return 1;
 		}

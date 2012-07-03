@@ -312,8 +312,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 		/* if this is the last fragment, remove the entry from table */
 		if (!(ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS))) {
 			printf("[Debug] Removing fragment entry\n");
-			nat_in_fragments_clenup(nat4_tcp_fragments,
-						ip4->ip_src, ip4->id);
+			nat_in_fragments_cleanup(nat4_tcp_fragments,
+						 ip4->ip_src, ip4->id);
 		}
 	}
 
