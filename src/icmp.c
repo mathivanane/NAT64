@@ -18,13 +18,13 @@
 
 #include <net/ethernet.h>	/* ETHERTYPE_* */
 #include <netinet/in.h>		/* htons */
-#include <stdio.h>
 #include <stdlib.h>		/* malloc */
 #include <string.h>		/* memcpy, memset */
 
 #include "checksum.h"
 #include "icmp.h"
 #include "ipv6.h"
+#include "log.h"
 #include "nat.h"
 #include "transmitter.h"
 #include "wrapper.h"
@@ -65,7 +65,7 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 
 	if (icmp->checksum != orig_checksum) {
 		/* packet is corrupted and shouldn't be processed */
-		printf("[Debug] Wrong checksum\n");
+		log_debug("Wrong checksum");
 		return 1;
 	}
 
@@ -81,8 +81,8 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 					    0, echo->id);
 
 			if (connection == NULL) {
-				printf("[Debug] Incoming connection wasn't "
-				       "found in NAT\n");
+				log_debug("Incoming connection wasn't found in "
+					  "NAT");
 				return 1;
 			}
 
@@ -94,8 +94,8 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 			break;
 
 		default:
-			printf("[Debug] ICMPv4 Type: unknown [%d/0x%x]\n",
-			       icmp->type, icmp->type);
+			log_debug("ICMPv4 Type: unknown [%d/0x%x]",
+				  icmp->type, icmp->type);
 			return 1;
 	}
 
@@ -103,7 +103,7 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 	if ((packet = (unsigned char *) malloc(sizeof(struct s_ethernet) +
 					       sizeof(struct s_ipv6) +
 					       payload_size)) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return 1;
 	}
 	eth6 = (struct s_ethernet *) packet;
@@ -177,7 +177,7 @@ int icmp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 
 	if (icmp->checksum != orig_checksum) {
 		/* packet is corrupted and shouldn't be processed */
-		printf("[Debug] Wrong checksum\n");
+		log_debug("Wrong checksum");
 		return 1;
 	}
 
@@ -192,8 +192,8 @@ int icmp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 					     echo->id, 0);
 
 			if (connection == NULL) {
-				printf("[Debug] Error! Outgoing connection "
-				       "wasn't found/created in NAT!\n");
+				log_warn("Outgoing connection wasn't "
+					 "found/created in NAT!");
 				return 1;
 			}
 
@@ -213,15 +213,15 @@ int icmp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 					(struct s_icmp_ndp_ns *) icmp_data);
 
 		default:
-			printf("[Debug] ICMPv6 Type: unknown [%d/0x%x]\n",
-			       icmp->type, icmp->type);
+			log_debug("ICMPv6 Type: unknown [%d/0x%x]",
+				  icmp->type, icmp->type);
 			return 1;
 	}
 
 	/* allocate memory for translated packet */
 	if ((packet = (unsigned char *) malloc(sizeof(struct s_ipv4) +
 					       htons(ip6->len))) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return 1;
 	}
 	ip4 = (struct s_ipv4 *) packet;
@@ -280,7 +280,7 @@ int icmp_ndp(struct s_ethernet *ethq, struct s_ipv6 *ipq,
 
 	/* first check whether the request belongs to us */
 	if (memcmp(&wrapsix_ipv6_prefix, &ndp_ns->target, 12) != 0) {
-		printf("[Debug] [NDP] This is unfamiliar packet\n");
+		log_debug("This is unfamiliar NDP packet");
 		return 1;
 	}
 
@@ -290,7 +290,7 @@ int icmp_ndp(struct s_ethernet *ethq, struct s_ipv6 *ipq,
 				sizeof(struct s_icmp) + \
 				sizeof(struct s_icmp_ndp_na)
 	if ((packet = (unsigned char *) malloc(NDP_PACKET_SIZE)) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return 1;
 	}
 	memset(packet, 0x0, NDP_PACKET_SIZE);

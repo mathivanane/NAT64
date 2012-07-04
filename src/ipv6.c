@@ -17,11 +17,11 @@
  */
 
 #include <netinet/in.h>		/* IPPROTO_* */
-#include <stdio.h>
 #include <string.h>		/* memcmp */
 
 #include "icmp.h"
 #include "ipv6.h"
+#include "log.h"
 #include "tcp.h"
 #include "udp.h"
 #include "wrapper.h"
@@ -47,23 +47,23 @@ int ipv6(struct s_ethernet *eth, char *packet)
 	/* test if this packet belongs to us */
 	if (memcmp(&wrapsix_ipv6_prefix, &ip->ip_dest, 12) != 0 &&
 	    memcmp(&ndp_multicast_addr,  &ip->ip_dest, 13) != 0) {
-		printf("[Debug] [IPv6] This is unfamiliar packet\n");
+		log_debug("This is unfamiliar IPv6 packet");
 		return 1;
 	}
 
 	switch (ip->next_header) {
 		case IPPROTO_TCP:
-			printf("[Debug] IPv6 Protocol: TCP\n");
+			log_debug("IPv6 Protocol: TCP");
 			return tcp_ipv6(eth, ip, payload);
 		case IPPROTO_UDP:
-			printf("[Debug] IPv6 Protocol: UDP\n");
+			log_debug("IPv6 Protocol: UDP");
 			return udp_ipv6(eth, ip, payload);
 		case IPPROTO_ICMPV6:
-			printf("[Debug] IPv6 Protocol: ICMP\n");
+			log_debug("IPv6 Protocol: ICMP");
 			return icmp_ipv6(eth, ip, payload);
 		default:
-			printf("[Debug] IPv6 Protocol: unknown [%d/0x%x]\n",
-			       ip->next_header, ip->next_header);
+			log_debug("IPv6 Protocol: unknown [%d/0x%x]",
+				  ip->next_header, ip->next_header);
 			return 1;
 	}
 }

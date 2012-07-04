@@ -7,6 +7,7 @@ wrapsix_wrapper_SOURCES = \
 			  icmp.c icmp.h \
 			  ipv4.c ipv4.h \
 			  ipv6.c ipv6.h \
+			  log.c log.h \
 			  nat.c nat.h \
 			  radixtree.c radixtree.h \
 			  tcp.c tcp.h \

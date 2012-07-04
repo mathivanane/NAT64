@@ -16,13 +16,13 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
 #include <stdlib.h>		/* malloc */
 #include <time.h>		/* time */
 
 #include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
+#include "log.h"
 #include "nat.h"
 #include "radixtree.h"
 #include "wrapper.h"
@@ -120,7 +120,7 @@ struct s_nat *nat_out(radixtree_t *nat_proto6, radixtree_t *nat_proto4,
 		/* if no connection is found, let's create one */
 		if ((connection =
 		    (struct s_nat *) malloc(sizeof(struct s_nat))) == NULL) {
-			fprintf(stderr, "[Error] Lack of free memory\n");
+			log_error("Lack of free memory");
 			return NULL;
 		}
 
@@ -198,7 +198,7 @@ struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
  * @param	id		Fragment identification
  * @param	nat		Connection to save
  *
- * @return			Connection
+ * @return	Connection
  */
 struct s_nat *nat_in_fragments(radixtree_t *nat_proto4,
 			       struct s_ipv4_addr ipv4_src,

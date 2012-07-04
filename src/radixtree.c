@@ -16,10 +16,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>		/* fprintf */
 #include <stdlib.h>		/* free, malloc */
 #include <string.h>		/* memcpy */
 
+#include "log.h"
 #include "radixtree.h"
 
 /**
@@ -32,7 +32,7 @@ radixtree_t *radixtree_create(void)
 	radixtree_t *radixtree;
 
 	if ((radixtree = (radixtree_t *) malloc(sizeof(radixtree_t))) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return NULL;
 	}
 	memset(radixtree, 0, sizeof(radixtree_t));
@@ -207,7 +207,7 @@ void *radixtree_lookup(radixtree_t *root,
  * @param	count	Variable into which is put information about number of
  * 			chunks produced
  *
- * @return		Array of chunks
+ * @return	Array of chunks
  */
 unsigned char *radixtree_chunker(void *data, unsigned char size, unsigned char *count)
 {
@@ -220,7 +220,7 @@ unsigned char *radixtree_chunker(void *data, unsigned char size, unsigned char *
 	memcpy(count, &counter, sizeof(unsigned char));
 
 	if ((chunks = (unsigned char *) malloc(counter * sizeof(unsigned char))) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return NULL;
 	}
 

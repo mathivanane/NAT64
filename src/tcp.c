@@ -18,7 +18,6 @@
 
 #include <net/ethernet.h>	/* ETHERTYPE_* */
 #include <netinet/in.h>		/* htons */
-#include <stdio.h>
 #include <stdlib.h>		/* malloc */
 #include <string.h>		/* memcpy */
 
@@ -26,6 +25,7 @@
 #include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
+#include "log.h"
 #include "nat.h"
 #include "tcp.h"
 #include "transmitter.h"
@@ -78,7 +78,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 			if (tcp->checksum != orig_checksum) {
 				/* packet is corrupted and shouldn't be
 				 * processed */
-				printf("[Debug] Wrong checksum\n");
+				log_debug("Wrong checksum");
 				return 1;
 			}
 		}
@@ -88,8 +88,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 				    tcp->port_src, tcp->port_dest);
 
 		if (connection == NULL) {
-			printf("[Debug] Incoming connection wasn't found in "
-			       "NAT\n");
+			log_debug("Incoming connection wasn't found in NAT");
 			return 1;
 		}
 
@@ -105,7 +104,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 		    MTU + sizeof(struct s_ethernet) :
 		    sizeof(struct s_ethernet) + sizeof(struct s_ipv6) +
 		    payload_size)) == NULL) {
-			fprintf(stderr, "[Error] Lack of free memory\n");
+			log_error("Lack of free memory");
 			return 1;
 		}
 		eth6 = (struct s_ethernet *) packet;
@@ -201,8 +200,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 					      ip4->id, NULL);
 
 		if (connection == NULL) {
-			printf("[Debug] Incoming connection wasn't found in "
-			       "fragments table\n");
+			log_debug("Incoming connection wasn't found in "
+				  "fragments table");
 			return 1;
 		}
 
@@ -213,7 +212,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 		    MTU + sizeof(struct s_ethernet) :
 		    sizeof(struct s_ethernet) + sizeof(struct s_ipv6) +
 		    sizeof(struct s_ipv6_fragment) + payload_size)) == NULL) {
-			fprintf(stderr, "[Error] Lack of free memory\n");
+			log_error("Lack of free memory");
 			return 1;
 		}
 		eth6 = (struct s_ethernet *) packet;
@@ -311,7 +310,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 
 		/* if this is the last fragment, remove the entry from table */
 		if (!(ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS))) {
-			printf("[Debug] Removing fragment entry\n");
+			log_debug("Removing fragment entry");
 			nat_in_fragments_cleanup(nat4_tcp_fragments,
 						 ip4->ip_src, ip4->id);
 		}
@@ -354,7 +353,7 @@ int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 
 	if (tcp->checksum != orig_checksum) {
 		/* packet is corrupted and shouldn't be processed */
-		printf("[Debug] Wrong checksum\n");
+		log_debug("Wrong checksum");
 		return 1;
 	}
 
@@ -364,15 +363,14 @@ int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 			     tcp->port_src, tcp->port_dest);
 
 	if (connection == NULL) {
-		printf("[Debug] Error! Outgoing connection wasn't "
-		       "found/created in NAT!\n");
+		log_warn("Outgoing connection wasn't found/created in NAT");
 		return 1;
 	}
 
 	/* allocate memory for translated packet */
 	if ((packet = (unsigned char *) malloc(sizeof(struct s_ipv4) +
 	    htons(ip6->len))) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return 1;
 	}
 	ip4 = (struct s_ipv4 *) packet;

@@ -17,11 +17,11 @@
  */
 
 #include <netinet/in.h>		/* IPPROTO_* */
-#include <stdio.h>
 #include <string.h>		/* memcmp */
 
 #include "icmp.h"
 #include "ipv4.h"
+#include "log.h"
 #include "tcp.h"
 #include "udp.h"
 #include "wrapper.h"
@@ -47,7 +47,7 @@ int ipv4(struct s_ethernet *eth, char *packet)
 
 	/* test if this packet belongs to us */
 	if (memcmp(&wrapsix_ipv4_addr, &ip->ip_dest, 4) != 0) {
-		printf("[Debug] [IPv4] This is unfamiliar packet\n");
+		log_debug("This is unfamiliar IPv4 packet");
 		return 1;
 	}
 
@@ -58,17 +58,17 @@ int ipv4(struct s_ethernet *eth, char *packet)
 
 	switch (ip->proto) {
 		case IPPROTO_TCP:
-			printf("[Debug] IPv4 Protocol: TCP\n");
+			log_debug("IPv4 Protocol: TCP");
 			return tcp_ipv4(eth, ip, payload, data_size);
 		case IPPROTO_UDP:
-			printf("[Debug] IPv4 Protocol: UDP\n");
+			log_debug("IPv4 Protocol: UDP");
 			return udp_ipv4(eth, ip, payload, data_size);
 		case IPPROTO_ICMP:
-			printf("[Debug] IPv4 Protocol: ICMP\n");
+			log_debug("IPv4 Protocol: ICMP");
 			return icmp_ipv4(eth, ip, payload, data_size);
 		default:
-			printf("[Debug] IPv4 Protocol: unknown [%d/0x%x]\n",
-			       ip->proto, ip->proto);
+			log_debug("IPv4 Protocol: unknown [%d/0x%x]",
+				  ip->proto, ip->proto);
 			return 1;
 	}
 }

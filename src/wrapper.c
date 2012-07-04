@@ -22,7 +22,6 @@
 #include <netpacket/packet.h>	/* struct packet_mreq, struct sockaddr_ll */
 #include <netinet/in.h>		/* htons */
 #include <net/ethernet.h>	/* ETHERTYPE_* */
-#include <stdio.h>
 #include <stdlib.h>		/* srand */
 #include <string.h>		/* strncpy */
 #include <sys/ioctl.h>		/* ioctl, SIOCGIFINDEX */
@@ -33,6 +32,7 @@
 #include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
+#include "log.h"
 #include "nat.h"
 #include "transmitter.h"
 #include "wrapper.h"
@@ -63,16 +63,18 @@ int main(int argc, char **argv)
 	int	length;
 	char	buffer[MTU];
 
+	log_info(PACKAGE_STRING " is starting");
+
 	/* initialize the socket for sniffing */
 	if ((sniff_sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
-		fprintf(stderr, "[Error] Unable to create listening socket\n");
+		log_error("Unable to create listening socket");
 		return 1;
 	}
 
 	/* get the interface */
 	strncpy(interface.ifr_name, INTERFACE, IFNAMSIZ);
 	if (ioctl(sniff_sock, SIOCGIFINDEX, &interface) == -1) {
-		fprintf(stderr, "[Error] Unable to get the interface\n");
+		log_error("Unable to get the interface");
 		return 1;
 	}
 
@@ -82,11 +84,11 @@ int main(int argc, char **argv)
 
 		/* reinitialize the interface */
 		if (ioctl(sniff_sock, SIOCGIFINDEX, &interface) == -1) {
-			fprintf(stderr, "[Error] Unable to reinitialize the interface\n");
+			log_error("Unable to reinitialize the interface");
 			return 1;
 		}
 	} else {
-		fprintf(stderr, "[Error] Unable to get the interface's HW address\n");
+		log_error("Unable to get the interface's HW address");
 		return 1;
 	}
 
@@ -95,7 +97,7 @@ int main(int argc, char **argv)
 	pmr.mr_ifindex = interface.ifr_ifindex;
 	pmr.mr_type = PACKET_MR_PROMISC;
 	if (setsockopt(sniff_sock, SOL_PACKET, PACKET_ADD_MEMBERSHIP, (char *) &pmr, sizeof(pmr)) == -1) {
-		fprintf(stderr, "[Error] Unable to set the promiscuous mode on the interface\n");
+		log_error("Unable to set the promiscuous mode on the interface");
 		return 1;
 	}
 
@@ -111,7 +113,7 @@ int main(int argc, char **argv)
 
 	/* initiate sending socket */
 	if (transmission_init()) {
-		fprintf(stderr, "[Error] Unable to initiate sending socket\n");
+		log_error("Unable to initiate sending socket");
 		return 1;
 	}
 
@@ -125,7 +127,7 @@ int main(int argc, char **argv)
 	for (;;) {
 		addr_size = sizeof(addr);
 		if ((length = recv(sniff_sock, buffer, MTU, 0)) == -1) {
-			fprintf(stderr, "[Error] Unable to retrieve data from socket\n");
+			log_error("Unable to retrieve data from socket");
 			return 1;
 		}
 
@@ -141,7 +143,7 @@ int main(int argc, char **argv)
 
 	/* unset the promiscuous mode */
 	if (setsockopt(sniff_sock, SOL_PACKET, PACKET_DROP_MEMBERSHIP, (char *) &pmr, sizeof(pmr)) == -1) {
-		fprintf(stderr, "[Error] Unable to unset the promiscuous mode on the interface\n");
+		log_error("Unable to unset the promiscuous mode on the interface");
 		/* do not call `return` here as we want to close the socket too */
 	}
 
@@ -162,16 +164,16 @@ int process(char *packet)
 
 	switch (htons(eth->type)) {
 		case ETHERTYPE_IP:
-			printf("[Debug] HW Protocol: IPv4\n");
+			log_debug("HW Protocol: IPv4");
 			return ipv4(eth, payload);
 		case ETHERTYPE_IPV6:
-			printf("[Debug] HW Protocol: IPv6\n");
+			log_debug("HW Protocol: IPv6");
 			return ipv6(eth, payload);
 		case ETHERTYPE_ARP:
-			printf("[Debug] HW Protocol: ARP\n");
+			log_debug("HW Protocol: ARP");
 			return arp(eth, payload);
 		default:
-			printf("[Debug] HW Protocol: unknown [%d/0x%04x]\n",
+			log_debug("HW Protocol: unknown [%d/0x%04x]",
 			       htons(eth->type), htons(eth->type));
 			return 1;
 	}

@@ -18,7 +18,6 @@
 
 #include <net/ethernet.h>	/* ETHERTYPE_* */
 #include <netinet/in.h>		/* htons */
-#include <stdio.h>
 #include <stdlib.h>		/* malloc */
 #include <string.h>		/* memcpy */
 
@@ -26,6 +25,7 @@
 #include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
+#include "log.h"
 #include "nat.h"
 #include "transmitter.h"
 #include "udp.h"
@@ -68,7 +68,7 @@ int udp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 
 		if (udp->checksum != orig_checksum) {
 			/* packet is corrupted and shouldn't be processed */
-			printf("[Debug] Wrong checksum\n");
+			log_debug("Wrong checksum");
 			return 1;
 		}
 	}
@@ -77,7 +77,7 @@ int udp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	connection = nat_in(nat4_udp, ip4->ip_src, udp->port_src, udp->port_dest);
 
 	if (connection == NULL) {
-		printf("[Debug] Incoming connection wasn't found in NAT\n");
+		log_debug("Incoming connection wasn't found in NAT");
 		return 1;
 	}
 
@@ -85,7 +85,7 @@ int udp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	if ((packet = (unsigned char *) malloc(sizeof(struct s_ethernet) +
 					       sizeof(struct s_ipv6) +
 					       payload_size)) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return 1;
 	}
 	eth6 = (struct s_ethernet *) packet;
@@ -168,7 +168,7 @@ int udp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 
 	if (udp->checksum != orig_checksum) {
 		/* packet is corrupted and shouldn't be processed */
-		printf("[Debug] Wrong checksum\n");
+		log_debug("Wrong checksum");
 		return 1;
 	}
 
@@ -178,15 +178,14 @@ int udp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 			     udp->port_src, udp->port_dest);
 
 	if (connection == NULL) {
-		printf("[Debug] Error! Outgoing connection wasn't "
-		       "found/created in NAT!\n");
+		log_warn("Outgoing connection wasn't found/created in NAT!");
 		return 1;
 	}
 
 	/* allocate memory for translated packet */
 	packet_size = sizeof(struct s_ipv4) + htons(ip6->len);
 	if ((packet = (unsigned char *) malloc(packet_size)) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return 1;
 	}
 	ip4 = (struct s_ipv4 *) packet;

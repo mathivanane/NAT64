@@ -17,13 +17,13 @@
  */
 
 #include <netinet/in.h>		/* htonl */
-#include <stdio.h>
 #include <stdlib.h>		/* malloc */
 #include <string.h>		/* memcpy */
 
 #include "checksum.h"
 #include "ipv4.h"
 #include "ipv6.h"
+#include "log.h"
 
 /**
  * General checksum computation function
@@ -31,7 +31,7 @@
  * @param	data	Pointer to data of which to compute the checksum
  * @param	length	Length of the data (in bytes)
  *
- * @return		Checksum
+ * @return	Checksum
  */
 unsigned short checksum(const void *data, int length)
 {
@@ -76,7 +76,7 @@ unsigned short checksum(const void *data, int length)
  * 				number of octets
  * @param	new_len		Length of new data
  *
- * @return			Updated checksum
+ * @return	Updated checksum
  */
 unsigned short checksum_update(unsigned short old_sum,
 			       unsigned short *old_data, short old_len,
@@ -116,7 +116,7 @@ unsigned short checksum_update(unsigned short old_sum,
  * @param	proto	Protocol in the payload
  * @param	payload	Pointer to payload data
  *
- * @return		Checksum
+ * @return	Checksum
  */
 unsigned short checksum_ipv4(struct s_ipv4_addr ip_src,
 			     struct s_ipv4_addr ip_dest,
@@ -128,7 +128,7 @@ unsigned short checksum_ipv4(struct s_ipv4_addr ip_src,
 	unsigned short		 sum;
 
 	if ((buffer = malloc(sizeof(struct s_ipv4_pseudo) + length)) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return 0;
 	}
 
@@ -158,7 +158,7 @@ unsigned short checksum_ipv4(struct s_ipv4_addr ip_src,
  * @param	proto	Protocol in the payload
  * @param	payload	Pointer to payload data
  *
- * @return		Checksum
+ * @return	Checksum
  */
 unsigned short checksum_ipv6(struct s_ipv6_addr ip_src,
 			     struct s_ipv6_addr ip_dest,
@@ -170,7 +170,7 @@ unsigned short checksum_ipv6(struct s_ipv6_addr ip_src,
 	unsigned short		 sum;
 
 	if ((buffer = malloc(sizeof(struct s_ipv6_pseudo) + length)) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return 0;
 	}
 
@@ -202,7 +202,7 @@ unsigned short checksum_ipv6(struct s_ipv6_addr ip_src,
  * @param	ip4_dest	New destination IPv4 address
  * @param	new_port	New transport layer address (port)
  *
- * @return			Checksum
+ * @return	Checksum
  */
 unsigned short checksum_ipv4_update(unsigned short old_sum,
 				    struct s_ipv6_addr ip6_src,
@@ -241,7 +241,7 @@ unsigned short checksum_ipv4_update(unsigned short old_sum,
  * @param	ip6_dest	New destination IPv6 address
  * @param	new_port	New transport layer address (port)
  *
- * @return			Checksum
+ * @return	Checksum
  */
 unsigned short checksum_ipv6_update(unsigned short old_sum,
 				    struct s_ipv4_addr ip4_src,

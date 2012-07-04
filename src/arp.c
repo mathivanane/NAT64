@@ -18,11 +18,11 @@
 
 #include <net/ethernet.h>	/* ETHERTYPE_* */
 #include <netinet/in.h>		/* htons */
-#include <stdio.h>
 #include <stdlib.h>		/* malloc */
 #include <string.h>		/* memcmp, memset */
 
 #include "arp.h"
+#include "log.h"
 #include "transmitter.h"
 #include "wrapper.h"
 
@@ -32,8 +32,8 @@
  * @param	ethq	Ethernet header of the packet
  * @param	payload	Data of the packet
  *
- * @return		0 for success
- * @return		1 for failure
+ * @return	0 for success
+ * @return	1 for failure
  */
 int arp(struct s_ethernet *ethq, char *payload)
 {
@@ -51,7 +51,7 @@ int arp(struct s_ethernet *ethq, char *payload)
 
 	/* test if this packet belongs to us */
 	if (memcmp(&wrapsix_ipv4_addr, &arpq->ip_dest, 4)) {
-		printf("[Debug] This is unfamiliar packet\n");
+		log_debug("This is unfamiliar ARP packet");
 		return 1;
 	}
 
@@ -60,7 +60,7 @@ int arp(struct s_ethernet *ethq, char *payload)
 
 	/* allocate enough memory */
 	if ((packet = (unsigned char *) malloc(ARP_PACKET_SIZE)) == NULL) {
-		fprintf(stderr, "[Error] Lack of free memory\n");
+		log_error("Lack of free memory");
 		return 1;
 	}
 	memset(packet, 0x0, ARP_PACKET_SIZE);
