@@ -47,7 +47,6 @@ int ipv4(struct s_ethernet *eth, char *packet)
 
 	/* test if this packet belongs to us */
 	if (memcmp(&wrapsix_ipv4_addr, &ip->ip_dest, 4) != 0) {
-		log_debug("This is unfamiliar IPv4 packet");
 		return 1;
 	}
 

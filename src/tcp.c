@@ -25,6 +25,7 @@
 #include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
+#include "linkedlist.h"
 #include "log.h"
 #include "nat.h"
 #include "tcp.h"
@@ -49,8 +50,12 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 {
 	struct s_tcp  *tcp;
 	struct s_nat  *connection;
-	unsigned short orig_checksum;
+	unsigned short tmp_short;
 	unsigned char *packet;
+
+	unsigned char	  *saved_packet;
+	linkedlist_t	  *queue;
+	linkedlist_node_t *llnode;
 
 	struct s_ethernet	*eth6;
 	struct s_ipv6		*ip6;
@@ -59,7 +64,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	/* full processing of unfragmented packet or the first fragment with
 	 * TCP header
 	 */
-	if ((ip4->flags_offset & htons(IPV4_FLAG_DONT_FRAGMENT)) ||
+	if ((ip4->flags_offset | htons(IPV4_FLAG_DONT_FRAGMENT)) ==
+	    htons(IPV4_FLAG_DONT_FRAGMENT) ||
 	    ((ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS)) &&
 	     (ip4->flags_offset & 0xff1f) == 0x0000 &&
 	     payload_size >= sizeof(struct s_tcp))) {
@@ -69,13 +75,13 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 		/* checksum recheck -- only if the packet is unfragmented */
 		if ((ip4->flags_offset | htons(IPV4_FLAG_DONT_FRAGMENT)) ==
 		    htons(IPV4_FLAG_DONT_FRAGMENT)) {
-			orig_checksum = tcp->checksum;
+			tmp_short = tcp->checksum;
 			tcp->checksum = 0;
 			tcp->checksum = checksum_ipv4(ip4->ip_src, ip4->ip_dest,
 						      payload_size, IPPROTO_TCP,
 						      (unsigned char *) tcp);
 
-			if (tcp->checksum != orig_checksum) {
+			if (tcp->checksum != tmp_short) {
 				/* packet is corrupted and shouldn't be
 				 * processed */
 				log_debug("Wrong checksum");
@@ -96,6 +102,34 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 		if (ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS)) {
 			nat_in_fragments(nat4_tcp_fragments, ip4->ip_src,
 					 ip4->id, connection);
+
+			/* check if there are any saved fragments */
+			if ((queue = nat_in_fragments(nat4_saved_fragments,
+			     ip4->ip_src, ip4->id, NULL)) != NULL) {
+				log_debug("Processing TCP fragments of %d",
+					  ip4->id);
+				llnode = queue->first.next;
+				while (llnode->next != NULL) {
+					llnode = llnode->next;
+					memcpy(&tmp_short, llnode->prev->data,
+					       sizeof(unsigned short));
+					tcp_ipv4((struct s_ethernet *) (
+						  (char *) llnode->prev->data +
+						  sizeof(unsigned short)),
+						 (struct s_ipv4 *) (
+						  (char *) llnode->prev->data +
+						  sizeof(unsigned short) +
+						  sizeof(struct s_ethernet)),
+						 (char *) (
+						  (char *) llnode->prev->data +
+						  sizeof(unsigned short) +
+						  sizeof(struct s_ethernet) +
+						  sizeof(struct s_ipv4)),
+						 tmp_short);
+					free(llnode->prev->data);
+					linkedlist_delete(queue, llnode->prev);
+				}
+			}
 		}
 
 		/* allocate enough memory for translated packet */
@@ -201,8 +235,48 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 
 		if (connection == NULL) {
 			log_debug("Incoming connection wasn't found in "
-				  "fragments table");
-			return 1;
+				  "fragments table -- saving it");
+
+			if ((saved_packet = (unsigned char *) malloc(
+			    sizeof(unsigned short) + sizeof(struct s_ethernet) +
+			    sizeof(struct s_ipv4) + payload_size)) == NULL) {
+				log_error("Lack of free memory");
+				return 1;
+			}
+
+			/* first lookup */
+			connection = nat_in_fragments(nat4_saved_fragments,
+						      ip4->ip_src, ip4->id,
+						      NULL);
+
+			/* if unsuccessful, create a queue and put into tree */
+			if (connection == NULL) {
+				if ((queue = linkedlist_create()) == NULL) {
+					free(saved_packet);
+					return 1;
+				}
+				nat_in_fragments(nat4_saved_fragments,
+						 ip4->ip_src, ip4->id, queue);
+			}
+
+			/* save the packet and put it into the queue */
+			memcpy(saved_packet, &payload_size,
+			       sizeof(unsigned short));
+			memcpy((unsigned char *) (saved_packet +
+			       sizeof(unsigned short)), eth4,
+			       sizeof(struct s_ethernet));
+			memcpy((unsigned char *) (saved_packet +
+			       sizeof(unsigned short) +
+			       sizeof(struct s_ethernet)), ip4,
+			       sizeof(struct s_ipv4));
+			memcpy((unsigned char *) (saved_packet +
+			       sizeof(unsigned short) +
+			       sizeof(struct s_ethernet) +
+			       sizeof(struct s_ipv4)), payload, payload_size);
+
+			linkedlist_append(queue, saved_packet);
+
+			return 0;
 		}
 
 		/* allocate enough memory for translated packet */
@@ -306,13 +380,6 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 				     sizeof(struct s_ipv6) +
 				     sizeof(struct s_ipv6_fragment) +
 				     payload_size);
-		}
-
-		/* if this is the last fragment, remove the entry from table */
-		if (!(ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS))) {
-			log_debug("Removing fragment entry");
-			nat_in_fragments_cleanup(nat4_tcp_fragments,
-						 ip4->ip_src, ip4->id);
 		}
 	}
 

@@ -48,7 +48,7 @@ struct s_radixtree_fragments4 {
 
 radixtree_t *nat6_tcp, *nat6_udp, *nat6_icmp,
 	    *nat4_tcp, *nat4_udp, *nat4_icmp,
-	    *nat4_tcp_fragments;
+	    *nat4_tcp_fragments, *nat4_saved_fragments;
 
 /**
  * Initialization of NAT tables.
@@ -64,6 +64,7 @@ void nat_init(void)
 	nat4_icmp = radixtree_create();
 
 	nat4_tcp_fragments = radixtree_create();
+	nat4_saved_fragments = radixtree_create();
 }
 
 /**
@@ -83,6 +84,7 @@ void nat_quit(void)
 
 	/* 32 + 16 = 48 / 6 = 8 */
 	radixtree_destroy(nat4_tcp_fragments, 8);
+	radixtree_destroy(nat4_saved_fragments, 8);
 }
 
 /**
@@ -191,42 +193,41 @@ struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
 }
 
 /**
- * Save and retrieve NATted connections via fragment identification.
+ * Save and retrieve data (e.g. NATted connections) via fragment identification.
  *
  * @param	nat_proto4	Radix tree of fragments
  * @param	ipv4_src	Source IPv4 address
  * @param	id		Fragment identification
- * @param	nat		Connection to save
+ * @param	data		Data to save
  *
- * @return	Connection
+ * @return	Data (or NULL when nothing found)
  */
-struct s_nat *nat_in_fragments(radixtree_t *nat_proto4,
-			       struct s_ipv4_addr ipv4_src,
-			       unsigned short id, struct s_nat *nat)
+void *nat_in_fragments(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
+		       unsigned short id, void *data)
 {
-	struct s_nat *result;
+	void *result;
 
 	/* create structure to search in the tree */
 	struct s_radixtree_fragments4 radixsearch4;
 	radixsearch4.addr = ipv4_src;
 	radixsearch4.id = id;
 
-	if ((result = (struct s_nat *) radixtree_lookup(nat_proto4,
-	    radixtree_chunker, &radixsearch4, sizeof(radixsearch4))) == NULL) {
-		if (nat != NULL) {
+	if ((result = radixtree_lookup(nat_proto4, radixtree_chunker,
+	     &radixsearch4, sizeof(radixsearch4))) == NULL) {
+		if (data != NULL) {
 			/* when fragmentation is not found, add one */
 			radixtree_insert(nat_proto4, radixtree_chunker,
 					 &radixsearch4, sizeof(radixsearch4),
-					 nat);
-			return nat;
+					 data);
+			return data;
 		} else {
 			/* nothing found and nothing to be added */
 			return NULL;
 		}
 	} else {
-		if (nat != NULL) {
+		if (data != NULL) {
 			/* when fragmentation is found, is it the same? */
-			if (result == nat) {
+			if (result == data) {
 				/* OK, return */
 				return result;
 			} else {
@@ -238,12 +239,10 @@ struct s_nat *nat_in_fragments(radixtree_t *nat_proto4,
 						 sizeof(radixsearch4));
 				radixtree_insert(nat_proto4, radixtree_chunker,
 						 &radixsearch4,
-						 sizeof(radixsearch4), nat);
-				return nat;
+						 sizeof(radixsearch4), data);
+				return data;
 			}
 		} else {
-			/* refresh it's connection and return */
-			result->last_packet = time(NULL);
 			return result;
 		}
 	}

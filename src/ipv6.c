@@ -47,7 +47,6 @@ int ipv6(struct s_ethernet *eth, char *packet)
 	/* test if this packet belongs to us */
 	if (memcmp(&wrapsix_ipv6_prefix, &ip->ip_dest, 12) != 0 &&
 	    memcmp(&ndp_multicast_addr,  &ip->ip_dest, 13) != 0) {
-		log_debug("This is unfamiliar IPv6 packet");
 		return 1;
 	}
 

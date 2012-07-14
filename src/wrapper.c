@@ -164,10 +164,8 @@ int process(char *packet)
 
 	switch (htons(eth->type)) {
 		case ETHERTYPE_IP:
-			log_debug("HW Protocol: IPv4");
 			return ipv4(eth, payload);
 		case ETHERTYPE_IPV6:
-			log_debug("HW Protocol: IPv6");
 			return ipv6(eth, payload);
 		case ETHERTYPE_ARP:
 			log_debug("HW Protocol: ARP");
