@@ -23,7 +23,8 @@
 #include "ipv6.h"
 
 /* +++ CONFIGURE +++ */
-#define MTU 1280
+#define MTU		1280	/* MTU on IPv6 side */
+#define PACKET_BUFFER	1514	/* buffer for any packet */
 /* --- CONFIGURE --- */
 
 extern struct ifreq		interface;

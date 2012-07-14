@@ -43,8 +43,6 @@
 #define IPV4_ADDR	"192.168.0.111"
 /* --- CONFIGURATION --- */
 
-#define PACKET_SIZE	MTU + sizeof(struct s_ethernet)
-
 
 struct ifreq		interface;
 struct s_mac_addr	mac;
@@ -63,7 +61,7 @@ int main(int argc, char **argv)
 
 	int	sniff_sock;
 	int	length;
-	char	buffer[PACKET_SIZE];
+	char	buffer[PACKET_BUFFER];
 
 	log_info(PACKAGE_STRING " is starting");
 
@@ -128,7 +126,7 @@ int main(int argc, char **argv)
 	/* sniff! :c) */
 	for (;;) {
 		addr_size = sizeof(addr);
-		if ((length = recv(sniff_sock, buffer, PACKET_SIZE, 0)) == -1) {
+		if ((length = recv(sniff_sock, buffer, PACKET_BUFFER, 0)) == -1) {
 			log_error("Unable to retrieve data from socket");
 			return 1;
 		}
