@@ -53,9 +53,9 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	unsigned short tmp_short;
 	unsigned char *packet;
 
-	unsigned char	  *saved_packet;
-	linkedlist_t	  *queue;
-	linkedlist_node_t *llnode;
+	unsigned char		*saved_packet;
+	struct s_nat_fragments	*frag_conn;
+	linkedlist_node_t	*llnode;
 
 	struct s_ethernet	*eth6;
 	struct s_ipv6		*ip6;
@@ -98,17 +98,74 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 			return 1;
 		}
 
+		/* TCP state machine */
+		switch (connection->state) {
+			case TCP_STATE_EST:
+				if (tcp->flags & TCP_FLAG_FIN) {
+					connection->state = TCP_STATE_FIN4;
+					break;
+				} else if (tcp->flags & TCP_FLAG_RST) {
+					connection->state = TCP_STATE_TRANS;
+					linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+					break;
+				} else {
+					linkedlist_move2end(timeout_tcp_est, connection->llnode);
+					break;
+				}
+
+			case TCP_STATE_INIT:
+				if (tcp->flags & TCP_FLAG_SYN) {
+					connection->state = TCP_STATE_EST;
+					linkedlist_move2end(timeout_tcp_est, connection->llnode);
+				}
+				break;
+
+			case TCP_STATE_FIN4:
+				linkedlist_move2end(timeout_tcp_est, connection->llnode);
+				break;
+
+			case TCP_STATE_FIN6:
+				if (tcp->flags & TCP_FLAG_FIN) {
+					connection->state = TCP_STATE_FIN64;
+					linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+					break;
+				} else {
+					linkedlist_move2end(timeout_tcp_est, connection->llnode);
+					break;
+				}
+
+			case TCP_STATE_FIN64:
+				break;
+
+			case TCP_STATE_TRANS:
+				if (tcp->flags & TCP_FLAG_RST) {
+					break;
+				} else {
+					connection->state = TCP_STATE_EST;
+					linkedlist_move2end(timeout_tcp_est, connection->llnode);
+					break;
+				}
+		}
+
 		/* if it's fragmented, save it to fragments table */
 		if (ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS)) {
-			nat_in_fragments(nat4_tcp_fragments, ip4->ip_src,
-					 ip4->id, connection);
+			if ((frag_conn = nat_in_fragments(nat4_tcp_fragments,
+			     timeout_tcp_fragments, ip4->ip_src, ip4->id)) ==
+			     NULL) {
+				return 1;
+			}
+
+			/* what is probability that there is already some other
+			 * connection? if there is such connection then there is
+			 * just a little chance to fix something as normally all
+			 * our fragments are already processed at this moment */
+			frag_conn->connection = connection;
 
 			/* check if there are any saved fragments */
-			if ((queue = nat_in_fragments(nat4_saved_fragments,
-			     ip4->ip_src, ip4->id, NULL)) != NULL) {
+			if (frag_conn->queue != NULL) {
 				log_debug("Processing TCP fragments of %d",
 					  ip4->id);
-				llnode = queue->first.next;
+				llnode = frag_conn->queue->first.next;
 				while (llnode->next != NULL) {
 					llnode = llnode->next;
 					memcpy(&tmp_short, llnode->prev->data,
@@ -127,7 +184,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 						  sizeof(struct s_ipv4)),
 						 tmp_short);
 					free(llnode->prev->data);
-					linkedlist_delete(queue, llnode->prev);
+					linkedlist_delete(frag_conn->queue,
+							  llnode->prev);
 				}
 			}
 		}
@@ -230,10 +288,12 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 		}
 	} else {
 		/* find connection in fragments table */
-		connection = nat_in_fragments(nat4_tcp_fragments, ip4->ip_src,
-					      ip4->id, NULL);
+		if ((frag_conn = nat_in_fragments(nat4_tcp_fragments,
+		     timeout_tcp_fragments, ip4->ip_src, ip4->id)) == NULL) {
+			return 1;
+		}
 
-		if (connection == NULL) {
+		if (frag_conn->connection == NULL) {
 			log_debug("Incoming connection wasn't found in "
 				  "fragments table -- saving it");
 
@@ -244,19 +304,13 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 				return 1;
 			}
 
-			/* first lookup */
-			connection = nat_in_fragments(nat4_saved_fragments,
-						      ip4->ip_src, ip4->id,
-						      NULL);
-
 			/* if unsuccessful, create a queue and put into tree */
-			if (connection == NULL) {
-				if ((queue = linkedlist_create()) == NULL) {
+			if (frag_conn->queue == NULL) {
+				if ((frag_conn->queue = linkedlist_create()) ==
+				    NULL) {
 					free(saved_packet);
 					return 1;
 				}
-				nat_in_fragments(nat4_saved_fragments,
-						 ip4->ip_src, ip4->id, queue);
 			}
 
 			/* save the packet and put it into the queue */
@@ -274,7 +328,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 			       sizeof(struct s_ethernet) +
 			       sizeof(struct s_ipv4)), payload, payload_size);
 
-			linkedlist_append(queue, saved_packet);
+			linkedlist_append(frag_conn->queue, saved_packet);
 
 			return 0;
 		}
@@ -295,7 +349,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 						   sizeof(struct s_ipv6));
 
 		/* build ethernet header */
-		eth6->dest		= connection->mac;
+		eth6->dest		= frag_conn->connection->mac;
 		eth6->src		= mac;
 		eth6->type		= htons(ETHERTYPE_IPV6);
 
@@ -427,11 +481,66 @@ int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 	/* find connection in NAT */
 	connection = nat_out(nat6_tcp, nat4_tcp, eth6->src,
 			     ip6->ip_src, ip6->ip_dest,
-			     tcp->port_src, tcp->port_dest);
+			     tcp->port_src, tcp->port_dest,
+			     tcp->flags & TCP_FLAG_SYN);
 
 	if (connection == NULL) {
 		log_warn("Outgoing connection wasn't found/created in NAT");
 		return 1;
+	}
+
+	/* TCP state machine */
+	switch (connection->state) {
+		case TCP_STATE_EST:
+			if (tcp->flags & TCP_FLAG_FIN) {
+				connection->state = TCP_STATE_FIN6;
+				break;
+			} else if (tcp->flags & TCP_FLAG_RST) {
+				connection->state = TCP_STATE_TRANS;
+				linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+				break;
+			} else {
+				linkedlist_move2end(timeout_tcp_est, connection->llnode);
+				break;
+			}
+
+		case TCP_STATE_INIT:
+			if (tcp->flags & TCP_FLAG_SYN) {
+				if (connection->llnode == NULL) {
+					connection->llnode = linkedlist_append(timeout_tcp_trans, connection);
+					break;
+				} else {
+					linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+					break;
+				}
+			}
+			break;
+
+		case TCP_STATE_FIN4:
+			if (tcp->flags & TCP_FLAG_FIN) {
+				connection->state = TCP_STATE_FIN64;
+				linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+				break;
+			} else {
+				linkedlist_move2end(timeout_tcp_est, connection->llnode);
+				break;
+			}
+
+		case TCP_STATE_FIN6:
+			linkedlist_move2end(timeout_tcp_est, connection->llnode);
+			break;
+
+		case TCP_STATE_FIN64:
+			break;
+
+		case TCP_STATE_TRANS:
+			if (tcp->flags & TCP_FLAG_RST) {
+				break;
+			} else {
+				connection->state = TCP_STATE_EST;
+				linkedlist_move2end(timeout_tcp_est, connection->llnode);
+				break;
+			}
 	}
 
 	/* allocate memory for translated packet */

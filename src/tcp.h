@@ -19,6 +19,17 @@
 #ifndef TCP_H
 #define TCP_H
 
+#define TCP_FLAG_FIN	0x01
+#define TCP_FLAG_SYN	0x02
+#define TCP_FLAG_RST	0x04
+
+#define TCP_STATE_INIT	1
+#define TCP_STATE_EST	2
+#define TCP_STATE_FIN4	3
+#define TCP_STATE_FIN6	4
+#define TCP_STATE_FIN64	5
+#define TCP_STATE_TRANS	6
+
 /* TCP header structure */
 struct s_tcp {
 	unsigned short port_src;	/* 16 b; source port */

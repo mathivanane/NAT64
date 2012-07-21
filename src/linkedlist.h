@@ -19,11 +19,14 @@
 #ifndef LINKEDLIST_H
 #define LINKEDLIST_H
 
+#include <time.h>	/* time_t */
+
 /* Linked list node structure */
 typedef struct s_linkedlist_node {
 	struct s_linkedlist_node	*prev;
 	struct s_linkedlist_node	*next;
 	void				*data;
+	time_t				 time;
 } linkedlist_node_t;
 
 /* Linked list root structure */
@@ -34,7 +37,8 @@ typedef struct s_linkedlist {
 
 linkedlist_t *linkedlist_create(void);
 void linkedlist_destroy(linkedlist_t *root);
-int linkedlist_append(linkedlist_t *root, void *data);
+linkedlist_node_t *linkedlist_append(linkedlist_t *root, void *data);
 void linkedlist_delete(linkedlist_t *root, linkedlist_node_t *node);
+void linkedlist_move2end(linkedlist_t *root, linkedlist_node_t *node);
 
 #endif /* LINKEDLIST_H */

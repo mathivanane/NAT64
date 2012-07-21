@@ -24,6 +24,7 @@
 #include "checksum.h"
 #include "icmp.h"
 #include "ipv6.h"
+#include "linkedlist.h"
 #include "log.h"
 #include "nat.h"
 #include "transmitter.h"
@@ -85,6 +86,8 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 					  "NAT");
 				return 1;
 			}
+
+			linkedlist_move2end(timeout_icmp, connection->llnode);
 
 			echo->id = connection->ipv6_port_src;
 
@@ -189,12 +192,21 @@ int icmp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 			connection = nat_out(nat6_icmp, nat4_icmp,
 					     eth6->src,
 					     ip6->ip_src, ip6->ip_dest,
-					     echo->id, 0);
+					     echo->id, 0, 1);
 
 			if (connection == NULL) {
 				log_warn("Outgoing connection wasn't "
 					 "found/created in NAT!");
 				return 1;
+			}
+
+			if (connection->llnode == NULL) {
+				connection->llnode =
+					linkedlist_append(timeout_icmp,
+							  connection);
+			} else {
+				linkedlist_move2end(timeout_icmp,
+						    connection->llnode);
 			}
 
 			echo->id = connection->ipv4_port_src;
@@ -280,7 +292,6 @@ int icmp_ndp(struct s_ethernet *ethq, struct s_ipv6 *ipq,
 
 	/* first check whether the request belongs to us */
 	if (memcmp(&wrapsix_ipv6_prefix, &ndp_ns->target, 12) != 0) {
-		log_debug("This is unfamiliar NDP packet");
 		return 1;
 	}
 

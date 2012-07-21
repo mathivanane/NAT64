@@ -82,7 +82,6 @@ void radixtree_insert(radixtree_t *root,
 	chunks = chunker(search_data, size, &chunk_count);
 
 	tmp = root;
-	tmp->count++;
 
 	for (i = 0; i < chunk_count; i++) {
 		unsigned char id;
@@ -91,15 +90,17 @@ void radixtree_insert(radixtree_t *root,
 
 		if (i == chunk_count - 1) {
 			tmp->array[id] = data;
+			tmp->count++;
+			free(chunks);
 			return;
 		}
 
 		if (tmp->array[id] == NULL) {
 			tmp->array[id] = radixtree_create();
+			tmp->count++;
 		}
 
 		tmp = tmp->array[id];
-		tmp->count++;
 	}
 
 	free(chunks);

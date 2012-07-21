@@ -21,7 +21,7 @@ AC_ARG_ENABLE([debug],
 	      [debug=no])
 
 if test "x$debug" = "xyes"; then
-	AM_CFLAGS="${AM_CFLAGS} -g -ggdb -O0 -pipe -pedantic -Wshadow -Wall -Wextra -Wno-missing-field-initializers -Wno-unused-parameter -Wold-style-definition -Wdeclaration-after-statement -Wmissing-declarations -Wmissing-prototypes -Wredundant-decls -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Winline -Wformat-nonliteral -Wformat-security -Wswitch-enum -Wswitch-default -Winit-self -Wmissing-include-dirs -Wundef -Waggregate-return -Wnested-externs -Wunsafe-loop-optimizations"
+	AM_CFLAGS="${AM_CFLAGS} -g -ggdb -O0 -pipe -pedantic -Wshadow -Wall -Wextra -Wno-missing-field-initializers -Wno-unused-parameter -Wold-style-definition -Wdeclaration-after-statement -Wmissing-declarations -Wmissing-prototypes -Wredundant-decls -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Winline -Wformat-nonliteral -Wformat-security -Wswitch-enum -Winit-self -Wmissing-include-dirs -Wundef -Waggregate-return -Wnested-externs -Wunsafe-loop-optimizations"
 	AC_DEFINE([DEBUG])
 else
         AM_CFLAGS="${AM_CFLAGS} -O2"

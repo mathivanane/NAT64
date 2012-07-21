@@ -25,7 +25,7 @@
 #include <stdlib.h>		/* srand */
 #include <string.h>		/* strncpy */
 #include <sys/ioctl.h>		/* ioctl, SIOCGIFINDEX */
-#include <time.h>		/* time */
+#include <time.h>		/* time, time_t */
 #include <unistd.h>		/* close */
 
 #include "arp.h"
@@ -56,12 +56,12 @@ int main(int argc, char **argv)
 {
 	struct packet_mreq	pmr;
 
-	struct sockaddr_ll	addr;
-	size_t			addr_size;
-
 	int	sniff_sock;
 	int	length;
 	char	buffer[PACKET_BUFFER];
+
+	int	i;
+	time_t	prevtime, curtime;
 
 	log_info(PACKAGE_STRING " is starting");
 
@@ -123,15 +123,27 @@ int main(int argc, char **argv)
 	/* initiate random numbers generator */
 	srand((unsigned int) time(NULL));
 
+	/* initialize time */
+	prevtime = time(NULL);
+
 	/* sniff! :c) */
-	for (;;) {
-		addr_size = sizeof(addr);
+	for (i = 1;; i++) {
 		if ((length = recv(sniff_sock, buffer, PACKET_BUFFER, 0)) == -1) {
 			log_error("Unable to retrieve data from socket");
 			return 1;
 		}
 
 		process((char *) &buffer);
+
+		if (i % 250000) {
+			curtime = time(NULL);
+			/* 2 seconds is minimum normal timeout */
+			if ((curtime - prevtime) >= 2) {
+				nat_cleaning();
+				prevtime = curtime;
+			}
+			i = 0;
+		}
 	}
 
 	/* clean-up */

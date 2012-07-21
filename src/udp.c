@@ -26,6 +26,7 @@
 #include "ipv4.h"
 #include "ipv6.h"
 #include "log.h"
+#include "linkedlist.h"
 #include "nat.h"
 #include "transmitter.h"
 #include "udp.h"
@@ -80,6 +81,8 @@ int udp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 		log_debug("Incoming connection wasn't found in NAT");
 		return 1;
 	}
+
+	linkedlist_move2end(timeout_udp, connection->llnode);
 
 	/* allocate memory for translated packet */
 	if ((packet = (unsigned char *) malloc(sizeof(struct s_ethernet) +
@@ -175,11 +178,17 @@ int udp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 	/* find connection in NAT */
 	connection = nat_out(nat6_udp, nat4_udp, eth6->src,
 			     ip6->ip_src, ip6->ip_dest,
-			     udp->port_src, udp->port_dest);
+			     udp->port_src, udp->port_dest, 1);
 
 	if (connection == NULL) {
 		log_warn("Outgoing connection wasn't found/created in NAT!");
 		return 1;
+	}
+
+	if (connection->llnode == NULL) {
+		connection->llnode = linkedlist_append(timeout_udp, connection);
+	} else {
+		linkedlist_move2end(timeout_udp, connection->llnode);
 	}
 
 	/* allocate memory for translated packet */
@@ -194,7 +203,7 @@ int udp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 	ip4->ver_hdrlen	  = 0x45;		/* ver 4, header length 20 B */
 	ip4->tos	  = ((ip6->ver & 0x0f) << 4) |
 			    ((ip6->traffic_class & 0xf0) >> 4);
-	ip4->len	  = htons(sizeof(struct s_ipv4) + htons(ip6->len));
+	ip4->len	  = htons(packet_size);
 	ip4->id		  = 0x0;
 	ip4->flags_offset = htons(IPV4_FLAG_DONT_FRAGMENT);
 	ip4->ttl	  = ip6->hop_limit;
@@ -220,7 +229,7 @@ int udp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 	ip4->checksum = checksum(ip4, sizeof(struct s_ipv4));
 
 	/* send translated packet */
-	transmit_ipv4(&ip4->ip_dest, packet, htons(ip4->len));
+	transmit_ipv4(&ip4->ip_dest, packet, packet_size);
 
 	/* clean-up */
 	free(packet);

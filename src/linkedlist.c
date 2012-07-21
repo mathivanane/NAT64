@@ -17,6 +17,7 @@
  */
 
 #include <stdlib.h>	/* free, malloc */
+#include <time.h>	/* time, time_t */
 
 #include "linkedlist.h"
 #include "log.h"
@@ -65,27 +66,28 @@ void linkedlist_destroy(linkedlist_t *root)
  * @param	root	Root of the linked list
  * @param	data	Data to append to the list
  *
- * @return	0 for success
- * @return	1 for failure
+ * @return	pointer to created node if succeeded
+ * @return	NULL if failed
  */
-int linkedlist_append(linkedlist_t *root, void *data)
+linkedlist_node_t *linkedlist_append(linkedlist_t *root, void *data)
 {
 	linkedlist_node_t *node;
 
 	if ((node = (linkedlist_node_t *) malloc(sizeof(linkedlist_node_t))) ==
 	    NULL) {
 		log_error("Lack of free memory");
-                return 1;
+                return NULL;
         }
 
 	node->data = data;
+	node->time = time(NULL);
 
 	node->prev = root->last.prev;
 	node->next = &root->last;
 	root->last.prev->next = node;
 	root->last.prev = node;
 
-	return 0;
+	return node;
 }
 
 /**
@@ -101,4 +103,26 @@ void linkedlist_delete(linkedlist_t *root, linkedlist_node_t *node)
 
 	free(node);
 	node = NULL;
+}
+
+/**
+ * Move a node to the end of linked list. It's possible to even move it to
+ * another linked list.
+ *
+ * @param	root	Root of the linked list
+ * @param	node	Node to move to the end
+ */
+void linkedlist_move2end(linkedlist_t *root, linkedlist_node_t *node)
+{
+	/* take the node out */
+	node->next->prev = node->prev;
+	node->prev->next = node->next;
+
+	/* put it to the end */
+	node->prev = root->last.prev;
+	node->next = &root->last;
+	root->last.prev->next = node;
+	root->last.prev = node;
+
+	node->time = time(NULL);
 }
