@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2011  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,6 +18,10 @@
 
 #ifndef ETHERNET_H
 #define ETHERNET_H
+
+#ifndef ETHERTYPE_IPV6
+#define ETHERTYPE_IPV6	0x86dd
+#endif /* ETHERTYPE_IPV6 */
 
 /* MAC address structure */
 struct s_mac_addr {
