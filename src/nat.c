@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -230,6 +230,7 @@ struct s_nat *nat_in(radixtree_t *nat_proto4, struct s_ipv4_addr ipv4_src,
  * Retrieve or create data structure via fragment identification.
  *
  * @param	nat_proto4	Radix tree of fragments
+ * @param	nat_timeout	Linked list in which to watch for timeout
  * @param	ipv4_src	Source IPv4 address
  * @param	id		Fragment identification
  *

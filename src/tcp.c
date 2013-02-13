@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -106,31 +106,37 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 					break;
 				} else if (tcp->flags & TCP_FLAG_RST) {
 					connection->state = TCP_STATE_TRANS;
-					linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+					linkedlist_move2end(timeout_tcp_trans,
+							    connection->llnode);
 					break;
 				} else {
-					linkedlist_move2end(timeout_tcp_est, connection->llnode);
+					linkedlist_move2end(timeout_tcp_est,
+							    connection->llnode);
 					break;
 				}
 
 			case TCP_STATE_INIT:
 				if (tcp->flags & TCP_FLAG_SYN) {
 					connection->state = TCP_STATE_EST;
-					linkedlist_move2end(timeout_tcp_est, connection->llnode);
+					linkedlist_move2end(timeout_tcp_est,
+							    connection->llnode);
 				}
 				break;
 
 			case TCP_STATE_FIN4:
-				linkedlist_move2end(timeout_tcp_est, connection->llnode);
+				linkedlist_move2end(timeout_tcp_est,
+						    connection->llnode);
 				break;
 
 			case TCP_STATE_FIN6:
 				if (tcp->flags & TCP_FLAG_FIN) {
 					connection->state = TCP_STATE_FIN64;
-					linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+					linkedlist_move2end(timeout_tcp_trans,
+							    connection->llnode);
 					break;
 				} else {
-					linkedlist_move2end(timeout_tcp_est, connection->llnode);
+					linkedlist_move2end(timeout_tcp_est,
+							    connection->llnode);
 					break;
 				}
 
@@ -142,7 +148,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 					break;
 				} else {
 					connection->state = TCP_STATE_EST;
-					linkedlist_move2end(timeout_tcp_est, connection->llnode);
+					linkedlist_move2end(timeout_tcp_est,
+							    connection->llnode);
 					break;
 				}
 		}
@@ -377,7 +384,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 
 			/* fill in missing IPv6 fragment header fields */
 			frag->offset_flag = htons((htons(ip4->flags_offset) <<
-						  3) | IPV6_FLAG_MORE_FRAGMENTS);
+						  3) |
+						  IPV6_FLAG_MORE_FRAGMENTS);
 
 			/* copy the payload data */
 			memcpy((unsigned char *) frag +
@@ -417,7 +425,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 					 sizeof(struct s_ipv6_fragment));
 
 			/* fill in missing IPv6 fragment header fields */
-			frag->offset_flag = htons(htons(ip4->flags_offset) << 3);
+			frag->offset_flag = htons(htons(ip4->flags_offset) <<
+						  3);
 			if (ip4->flags_offset &
 			    htons(IPV4_FLAG_MORE_FRAGMENTS)) {
 				frag->offset_flag |=
@@ -497,20 +506,26 @@ int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 				break;
 			} else if (tcp->flags & TCP_FLAG_RST) {
 				connection->state = TCP_STATE_TRANS;
-				linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+				linkedlist_move2end(timeout_tcp_trans,
+						    connection->llnode);
 				break;
 			} else {
-				linkedlist_move2end(timeout_tcp_est, connection->llnode);
+				linkedlist_move2end(timeout_tcp_est,
+						    connection->llnode);
 				break;
 			}
 
 		case TCP_STATE_INIT:
 			if (tcp->flags & TCP_FLAG_SYN) {
 				if (connection->llnode == NULL) {
-					connection->llnode = linkedlist_append(timeout_tcp_trans, connection);
+					connection->llnode =
+						linkedlist_append(
+							timeout_tcp_trans,
+							connection);
 					break;
 				} else {
-					linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+					linkedlist_move2end(timeout_tcp_trans,
+							    connection->llnode);
 					break;
 				}
 			}
@@ -519,15 +534,18 @@ int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 		case TCP_STATE_FIN4:
 			if (tcp->flags & TCP_FLAG_FIN) {
 				connection->state = TCP_STATE_FIN64;
-				linkedlist_move2end(timeout_tcp_trans, connection->llnode);
+				linkedlist_move2end(timeout_tcp_trans,
+						    connection->llnode);
 				break;
 			} else {
-				linkedlist_move2end(timeout_tcp_est, connection->llnode);
+				linkedlist_move2end(timeout_tcp_est,
+						    connection->llnode);
 				break;
 			}
 
 		case TCP_STATE_FIN6:
-			linkedlist_move2end(timeout_tcp_est, connection->llnode);
+			linkedlist_move2end(timeout_tcp_est,
+					    connection->llnode);
 			break;
 
 		case TCP_STATE_FIN64:
@@ -538,7 +556,8 @@ int tcp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 				break;
 			} else {
 				connection->state = TCP_STATE_EST;
-				linkedlist_move2end(timeout_tcp_est, connection->llnode);
+				linkedlist_move2end(timeout_tcp_est,
+						    connection->llnode);
 				break;
 			}
 	}

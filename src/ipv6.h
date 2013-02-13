@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -64,7 +64,8 @@ struct s_ipv6_pseudo {
 struct s_ipv6_pseudo_delta {
 	struct s_ipv6_addr	ip_src;		/* 128 b; source address */
 	struct s_ipv6_addr	ip_dest;	/* 128 b; destination address */
-	unsigned short		port;		/*  16 b; transport layer address */
+	unsigned short		port;		/*  16 b; transport layer
+							  address */
 } __attribute__ ((__packed__));
 
 int ipv6(struct s_ethernet *eth, char *packet);

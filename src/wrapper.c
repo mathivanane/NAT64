@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,10 +18,10 @@
 
 #include <arpa/inet.h>		/* inet_pton */
 #include <linux/if_ether.h>	/* ETH_P_ALL */
-#include <net/if.h>		/* struct ifreq */
-#include <netpacket/packet.h>	/* struct packet_mreq, struct sockaddr_ll */
-#include <netinet/in.h>		/* htons */
 #include <net/ethernet.h>	/* ETHERTYPE_* */
+#include <net/if.h>		/* struct ifreq */
+#include <netinet/in.h>		/* htons */
+#include <netpacket/packet.h>	/* struct packet_mreq, struct sockaddr_ll */
 #include <stdlib.h>		/* srand */
 #include <string.h>		/* strncpy */
 #include <sys/ioctl.h>		/* ioctl, SIOCGIFINDEX */
@@ -66,7 +66,8 @@ int main(int argc, char **argv)
 	log_info(PACKAGE_STRING " is starting");
 
 	/* initialize the socket for sniffing */
-	if ((sniff_sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
+	if ((sniff_sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) ==
+	    -1) {
 		log_error("Unable to create listening socket");
 		return 1;
 	}
@@ -80,7 +81,8 @@ int main(int argc, char **argv)
 
 	/* get interface's HW address (i.e. MAC) */
 	if (ioctl(sniff_sock, SIOCGIFHWADDR, &interface) == 0) {
-		memcpy(&mac, &interface.ifr_hwaddr.sa_data, sizeof(struct s_mac_addr));
+		memcpy(&mac, &interface.ifr_hwaddr.sa_data,
+		       sizeof(struct s_mac_addr));
 
 		/* reinitialize the interface */
 		if (ioctl(sniff_sock, SIOCGIFINDEX, &interface) == -1) {
@@ -96,8 +98,10 @@ int main(int argc, char **argv)
 	memset(&pmr, 0x0, sizeof(pmr));
 	pmr.mr_ifindex = interface.ifr_ifindex;
 	pmr.mr_type = PACKET_MR_PROMISC;
-	if (setsockopt(sniff_sock, SOL_PACKET, PACKET_ADD_MEMBERSHIP, (char *) &pmr, sizeof(pmr)) == -1) {
-		log_error("Unable to set the promiscuous mode on the interface");
+	if (setsockopt(sniff_sock, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
+	    (char *) &pmr, sizeof(pmr)) == -1) {
+		log_error("Unable to set the promiscuous mode on the "
+			  "interface");
 		return 1;
 	}
 
@@ -128,7 +132,8 @@ int main(int argc, char **argv)
 
 	/* sniff! :c) */
 	for (i = 1;; i++) {
-		if ((length = recv(sniff_sock, buffer, PACKET_BUFFER, 0)) == -1) {
+		if ((length = recv(sniff_sock, buffer, PACKET_BUFFER, 0)) ==
+		    -1) {
 			log_error("Unable to retrieve data from socket");
 			return 1;
 		}
@@ -154,9 +159,11 @@ int main(int argc, char **argv)
 	nat_quit();
 
 	/* unset the promiscuous mode */
-	if (setsockopt(sniff_sock, SOL_PACKET, PACKET_DROP_MEMBERSHIP, (char *) &pmr, sizeof(pmr)) == -1) {
-		log_error("Unable to unset the promiscuous mode on the interface");
-		/* do not call `return` here as we want to close the socket too */
+	if (setsockopt(sniff_sock, SOL_PACKET, PACKET_DROP_MEMBERSHIP,
+	    (char *) &pmr, sizeof(pmr)) == -1) {
+		log_error("Unable to unset the promiscuous mode on the "
+			  "interface");
+		/* do not call return here as we want to close the socket too */
 	}
 
 	/* close the socket */
@@ -168,7 +175,8 @@ int main(int argc, char **argv)
 int process(char *packet)
 {
 	struct s_ethernet	*eth;		/* the ethernet header */
-	char			*payload;	/* the IP header + packet payload */
+	char			*payload;	/* the IP header + packet
+						   payload */
 
 	/* parse ethernet header */
 	eth     = (struct s_ethernet *) (packet);

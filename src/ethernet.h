@@ -30,7 +30,8 @@ struct s_mac_addr {
 
 /* Ethernet header structure */
 struct s_ethernet {
-	struct s_mac_addr	dest;	/* 48 b; destination host (MAC) address */
+	struct s_mac_addr	dest;	/* 48 b; destination host (MAC)
+						 address */
 	struct s_mac_addr	src;	/* 48 b; source host (MAC) address */
 	unsigned short		type;	/* 16 b; IP/ARP/RARP/... */
 } __attribute__ ((__packed__));

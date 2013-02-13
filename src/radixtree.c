@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 /**
  * Creates root of radix tree.
  *
- * @return     Root of new radix tree
+ * @return	Root of new radix tree
  */
 radixtree_t *radixtree_create(void)
 {
@@ -44,8 +44,8 @@ radixtree_t *radixtree_create(void)
 /**
  * Destroys a radix tree.
  *
- * @param      root    Root of the tree to destroy
- * @param      depth   Depth of the tree
+ * @param	root	Root of the tree to destroy
+ * @param	depth	Depth of the tree
  */
 void radixtree_destroy(radixtree_t *root, unsigned char depth)
 {
@@ -65,14 +65,16 @@ void radixtree_destroy(radixtree_t *root, unsigned char depth)
 /**
  * Inserts new data entry into the tree.
  *
- * @param      root            Root of the radix tree
- * @param      chunker         Function to use to get chunks for indexing internal array
- * @param      search_data     Key used to search in the tree
- * @param      size            Length of the key
- * @param      data            Data to store in the tree
+ * @param	root		Root of the radix tree
+ * @param	chunker		Function to use to get chunks for indexing
+ * 				internal array
+ * @param	search_data	Key used to search in the tree
+ * @param	size		Length of the key
+ * @param	data		Data to store in the tree
  */
 void radixtree_insert(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		      unsigned char *(chunker)(void *data, unsigned char size,
+					       unsigned char *count),
 		      void *search_data, unsigned char size, void *data)
 {
 	radixtree_t *tmp;
@@ -109,13 +111,15 @@ void radixtree_insert(radixtree_t *root,
 /**
  * Deletes an entry from the tree.
  *
- * @param      root            Root of the radix tree
- * @param      chunker         Function to use to get chunks for indexing internal array
- * @param      data            Key used to search in the tree
- * @param      size            Length of the key
+ * @param	root		Root of the radix tree
+ * @param	chunker		Function to use to get chunks for indexing
+ * 				internal array
+ * @param	data		Key used to search in the tree
+ * @param	size		Length of the key
  */
 void radixtree_delete(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		      unsigned char *(chunker)(void *data, unsigned char size,
+					       unsigned char *count),
 		      void *data, unsigned char size)
 {
 	radixtree_t *tmp,
@@ -126,7 +130,8 @@ void radixtree_delete(radixtree_t *root,
 
 	chunks = chunker(data, size, &chunk_count);
 
-	for (i = 0, tmp = root; i < chunk_count && tmp != NULL; tmp = tmp->array[chunks[i++]]) {
+	for (i = 0, tmp = root; i < chunk_count && tmp != NULL;
+	     tmp = tmp->array[chunks[i++]]) {
 		flags = tmp->count == 1 ? flags | (0x1 << i) : 0;
 
 		if (i + 1 == chunk_count) {
@@ -160,13 +165,15 @@ void radixtree_delete(radixtree_t *root,
 /**
  * Lookups an entry in the tree.
  *
- * @param      root            Root of the radix tree
- * @param      chunker         Function to use to get chunks for indexing internal array
- * @param      data            Key used to search in the tree
- * @param      size            Length of the key
+ * @param	root		Root of the radix tree
+ * @param	chunker		Function to use to get chunks for indexing
+ * 				internal array
+ * @param	data		Key used to search in the tree
+ * @param	size		Length of the key
  */
 void *radixtree_lookup(radixtree_t *root,
-		       unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		       unsigned char *(chunker)(void *data, unsigned char size,
+					       unsigned char *count),
 		       void *data, unsigned char size)
 {
 	radixtree_t *tmp;
@@ -210,7 +217,8 @@ void *radixtree_lookup(radixtree_t *root,
  *
  * @return	Array of chunks
  */
-unsigned char *radixtree_chunker(void *data, unsigned char size, unsigned char *count)
+unsigned char *radixtree_chunker(void *data, unsigned char size,
+				 unsigned char *count)
 {
 	short i;
 	unsigned char counter;
@@ -220,7 +228,8 @@ unsigned char *radixtree_chunker(void *data, unsigned char size, unsigned char *
 	counter = size * 8 / 6;
 	memcpy(count, &counter, sizeof(unsigned char));
 
-	if ((chunks = (unsigned char *) malloc(counter * sizeof(unsigned char))) == NULL) {
+	if ((chunks = (unsigned char *) malloc(counter * sizeof(unsigned char)))
+	    == NULL) {
 		log_error("Lack of free memory");
 		return NULL;
 	}
@@ -238,9 +247,11 @@ unsigned char *radixtree_chunker(void *data, unsigned char size, unsigned char *
 	/* processes 3 bytes at a time */
 	for (i = 0, counter = 0; counter < *count; i++) {
 		chunks[counter++] = cdata[i] & 0x3f;
-		chunks[counter++] = ((cdata[i] & 0xc0) >> 6) | ((cdata[i + 1] & 0x0f) << 2);
+		chunks[counter++] = ((cdata[i] & 0xc0) >> 6) |
+				    ((cdata[i + 1] & 0x0f) << 2);
 		i++;
-		chunks[counter++] = ((cdata[i] & 0xf0) >> 4) | ((cdata[i + 1] & 0x03) << 4);
+		chunks[counter++] = ((cdata[i] & 0xf0) >> 4) |
+				    ((cdata[i + 1] & 0x03) << 4);
 		i++;
 		chunks[counter++] = ((cdata[i] & 0xfc) >> 2);
 	}

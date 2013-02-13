@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,8 +25,8 @@
 #include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
-#include "log.h"
 #include "linkedlist.h"
+#include "log.h"
 #include "nat.h"
 #include "transmitter.h"
 #include "udp.h"
@@ -75,7 +75,8 @@ int udp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	}
 
 	/* find connection in NAT */
-	connection = nat_in(nat4_udp, ip4->ip_src, udp->port_src, udp->port_dest);
+	connection = nat_in(nat4_udp, ip4->ip_src,
+			    udp->port_src, udp->port_dest);
 
 	if (connection == NULL) {
 		log_debug("Incoming connection wasn't found in NAT");
@@ -121,8 +122,9 @@ int udp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 						     connection->ipv6_port_src);
 	} else {
 		/* if original checksum was 0x0000, we need to compute it */
-		udp->checksum = checksum_ipv6(ip6->ip_src, ip6->ip_dest, payload_size,
-					      IPPROTO_UDP, (unsigned char *) udp);
+		udp->checksum = checksum_ipv6(ip6->ip_src, ip6->ip_dest,
+					      payload_size, IPPROTO_UDP,
+					      (unsigned char *) udp);
 	}
 
 	/* copy the payload data (with new checksum) */

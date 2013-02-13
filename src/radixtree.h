@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,14 +30,18 @@ typedef struct radixtree {
 radixtree_t *radixtree_create(void);
 void radixtree_destroy(radixtree_t *root, unsigned char depth);
 void radixtree_insert(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		      unsigned char *(chunker)(void *data, unsigned char size,
+					       unsigned char *count),
 		      void *search_data, unsigned char size, void *data);
 void radixtree_delete(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
+		      unsigned char *(chunker)(void *data, unsigned char size,
+					       unsigned char *count),
 		      void *data, unsigned char size);
 void *radixtree_lookup(radixtree_t *root,
-		      unsigned char *(chunker)(void *data, unsigned char size, unsigned char *count),
-		      void *data, unsigned char size);
-unsigned char *radixtree_chunker(void *data, unsigned char size, unsigned char *count);
+		       unsigned char *(chunker)(void *data, unsigned char size,
+					       unsigned char *count),
+		       void *data, unsigned char size);
+unsigned char *radixtree_chunker(void *data, unsigned char size,
+				 unsigned char *count);
 
 #endif /* RADIXTREE_H */

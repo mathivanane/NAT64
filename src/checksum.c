@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include "log.h"
 
 /**
- * General checksum computation function
+ * General checksum computation function.
  *
  * @param	data	Pointer to data of which to compute the checksum
  * @param	length	Length of the data (in bytes)
@@ -108,7 +108,7 @@ unsigned short checksum_update(unsigned short old_sum,
 }
 
 /**
- * IPv4 checksum computation function
+ * IPv4 checksum computation function.
  *
  * @param	ip_src	Source IPv4 address
  * @param	ip_dest	Destination IPv4 address
@@ -150,7 +150,7 @@ unsigned short checksum_ipv4(struct s_ipv4_addr ip_src,
 }
 
 /**
- * IPv6 checksum computation function
+ * IPv6 checksum computation function.
  *
  * @param	ip_src	Source IPv6 address
  * @param	ip_dest	Destionation IPv6 address
@@ -192,7 +192,7 @@ unsigned short checksum_ipv6(struct s_ipv6_addr ip_src,
 }
 
 /**
- * IPv4 checksum update computation function
+ * IPv4 checksum update computation function.
  *
  * @param	old_sum		Old checksum
  * @param	ip6_src		Original source IPv6 address
@@ -231,7 +231,7 @@ unsigned short checksum_ipv4_update(unsigned short old_sum,
 }
 
 /**
- * IPv6 checksum update computation function
+ * IPv6 checksum update computation function.
  *
  * @param	old_sum		Old checksum
  * @param	ip4_src		Original source IPv4 address
