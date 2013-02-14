@@ -366,7 +366,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 		ip6->hop_limit		= ip4->ttl;
 		ip6->next_header	= IPPROTO_FRAGMENT;
 		ipv4_to_ipv6(&ip4->ip_src, &ip6->ip_src);
-		ip6->ip_dest		= connection->ipv6;
+		ip6->ip_dest		= frag_conn->connection->ipv6;
 
 		/* build IPv6 fragment header */
 		frag->next_header	= IPPROTO_TCP;
