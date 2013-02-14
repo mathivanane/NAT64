@@ -108,7 +108,7 @@ int udp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	ip6->next_header	= IPPROTO_UDP;
 	ip6->hop_limit		= ip4->ttl;
 	ipv4_to_ipv6(&ip4->ip_src, &ip6->ip_src);
-	memcpy(&ip6->ip_dest, &connection->ipv6, sizeof(struct s_ipv6_addr));
+	ip6->ip_dest		= connection->ipv6;
 
 	/* set incoming source port */
 	udp->port_dest = connection->ipv6_port_src;
@@ -210,8 +210,8 @@ int udp_ipv6(struct s_ethernet *eth6, struct s_ipv6 *ip6, char *payload)
 	ip4->flags_offset = htons(IPV4_FLAG_DONT_FRAGMENT);
 	ip4->ttl	  = ip6->hop_limit;
 	ip4->proto	  = IPPROTO_UDP;
+	ip4->ip_src	  = wrapsix_ipv4_addr;
 	ipv6_to_ipv4(&ip6->ip_dest, &ip4->ip_dest);
-	memcpy(&ip4->ip_src, &wrapsix_ipv4_addr, sizeof(struct s_ipv4_addr));
 
 	/* set outgoing source port */
 	udp->port_src = connection->ipv4_port_src;
