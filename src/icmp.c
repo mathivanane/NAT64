@@ -353,3 +353,157 @@ int icmp_ndp(struct s_ethernet *ethq, struct s_ipv6 *ipq,
 
 	return 0;
 }
+
+/**
+ * Sends ICMPv4 error.
+ *
+ * @param	ip_dest	Destination IPv4 address
+ * @param	type	Type of ICMP error
+ * @param	code	Code of ICMP error
+ * @param	data	Original packet
+ * @param	length	Length of the original packet
+ *
+ * @return	0 for success
+ * @return	1 for failure
+ */
+int icmp4_error(struct s_ipv4_addr ip_dest, unsigned char type,
+		unsigned char code, unsigned char *data, unsigned short length)
+{
+	unsigned char *packet, *payload;
+	struct s_ipv4 *ip4;
+	struct s_icmp *icmp;
+
+	/* 4 = unused space after ICMP header */
+	unsigned short payload_size = length > 1500 - sizeof(struct s_ipv4) -
+					       sizeof(struct s_icmp) - 4 ?
+		1500 - sizeof(struct s_ipv4) - sizeof(struct s_icmp) - 4 :
+		length;
+
+	if ((packet = (unsigned char *) malloc(sizeof(struct s_ipv4) +
+	    sizeof(struct s_icmp) + 4 + payload_size)) == NULL) {
+		log_error("Lack of free memory");
+		return 1;
+	}
+
+	ip4 = (struct s_ipv4 *) packet;
+	icmp = (struct s_icmp *) (packet + sizeof(struct s_ipv4));
+	payload = (unsigned char *) (packet + sizeof(struct s_ipv4) +
+				     sizeof(struct s_icmp) + 4);
+
+	/* build IPv4 packet */
+	ip4->ver_hdrlen	  = 0x45;		/* ver 4, header length 20 B */
+	ip4->tos	  = 0x0;
+	ip4->len	  = htons(sizeof(struct s_ipv4) +
+				  sizeof(struct s_icmp) + 4 + payload_size);
+	ip4->id		  = 0x0;
+	ip4->flags_offset = htons(IPV4_FLAG_DONT_FRAGMENT);
+	ip4->ttl	  = 255;
+	ip4->proto	  = IPPROTO_ICMP;
+	ip4->ip_src	  = host_ipv4_addr;
+	ip4->ip_dest	  = ip_dest;
+
+	/* build ICMP header */
+	icmp->type = type;
+	icmp->code = code;
+	icmp->checksum = 0x0;
+
+	/* copy the payload data */
+	memcpy(payload, data, payload_size);
+
+	/* compute ICMP checksum */
+	icmp->checksum = checksum((unsigned char *) icmp,
+				  payload_size + 4 + sizeof(struct s_icmp));
+
+	/* compute IPv4 checksum */
+	ip4->checksum = checksum_ipv4(ip4->ip_src, ip4->ip_dest,
+				      htons(ip4->len), IPPROTO_ICMP,
+				      (unsigned char *) icmp);
+
+	/* send packet */
+	transmit_ipv4(&ip4->ip_dest, packet, htons(ip4->len));
+
+	/* clean-up */
+	free(packet);
+
+	return 0;
+}
+
+/**
+ * Sends ICMPv6 error.
+ *
+ * @param	mac_dest Destination MAC address
+ * @param	ip_dest	Destination IPv6 address
+ * @param	type	Type of ICMP error
+ * @param	code	Code of ICMP error
+ * @param	data	Original packet
+ * @param	length	Length of the original packet
+ *
+ * @return	0 for success
+ * @return	1 for failure
+ */
+int icmp6_error(struct s_mac_addr mac_dest, struct s_ipv6_addr ip_dest,
+		unsigned char type, unsigned char code, unsigned char *data,
+		unsigned short length)
+{
+	unsigned char *packet, *payload;
+	struct s_ethernet *eth;
+	struct s_ipv6 *ip6;
+	struct s_icmp *icmp;
+
+	/* 4 = unused space after ICMP header */
+	unsigned short payload_size = length > 1280 - sizeof(struct s_ipv6) -
+					       sizeof(struct s_icmp) - 4 ?
+		1280 - sizeof(struct s_ipv6) - sizeof(struct s_icmp) - 4 :
+		length;
+
+	if ((packet = (unsigned char *) malloc(sizeof(struct s_ethernet) +
+	    sizeof(struct s_ipv6) + sizeof(struct s_icmp) + 4 +
+	    payload_size)) == NULL) {
+		log_error("Lack of free memory");
+		return 1;
+	}
+
+	eth	= (struct s_ethernet *)	packet;
+	ip6	= (struct s_ipv6 *)	(packet + sizeof(struct s_ethernet));
+	icmp	= (struct s_icmp *)	(packet + sizeof(struct s_ethernet) +
+					 sizeof(struct s_ipv6));
+	payload	= (unsigned char *)	(packet + sizeof(struct s_ethernet) +
+					 sizeof(struct s_ipv6) +
+					 sizeof(struct s_icmp) + 4);
+
+	/* ethernet */
+	eth->dest = mac_dest;
+	eth->src  = mac;
+	eth->type = htons(ETHERTYPE_IPV6);
+
+	/* IPv6 */
+	ip6->ver	 = 0x60;
+	ip6->len	 = htons(sizeof(struct s_icmp) + 4 + payload_size);
+	ip6->next_header = IPPROTO_ICMPV6;
+	ip6->hop_limit	 = 255;
+	ip6->ip_src	 = host_ipv6_addr;
+	ip6->ip_dest	 = ip_dest;
+
+	/* ICMP */
+	icmp->type = type;
+	icmp->code = code;
+	icmp->checksum = 0x0;
+
+	/* copy the payload data */
+	memcpy(payload, data, payload_size);
+
+	/* compute ICMP checksum */
+	icmp->checksum = checksum_ipv6(host_ipv6_addr, ip_dest,
+				       sizeof(struct s_icmp) + 4 + payload_size,
+				       IPPROTO_ICMPV6,
+				       (unsigned char *) icmp);
+
+	/* send packet */
+	transmit_raw(packet, sizeof(struct s_ethernet) + sizeof(struct s_ipv6) +
+		     sizeof(struct s_icmp) + 4 + payload_size);
+
+	/* clean-up */
+	free(packet);
+
+	return 0;
+}

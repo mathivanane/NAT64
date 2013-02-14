@@ -41,6 +41,8 @@
 #define INTERFACE	"eth0"	/* be sure to turn off generic-segmentation-offload! */
 #define PREFIX		"64:ff9b::"
 #define IPV4_ADDR	"192.168.0.111"
+#define HOST_IPV6_ADDR	"fd77::1:0:1"
+#define HOST_IPV4_ADDR	"192.168.0.19"
 /* --- CONFIGURATION --- */
 
 
@@ -49,6 +51,8 @@ struct s_mac_addr	mac;
 struct s_ipv6_addr	ndp_multicast_addr;
 struct s_ipv6_addr	wrapsix_ipv6_prefix;
 struct s_ipv4_addr	wrapsix_ipv4_addr;
+struct s_ipv6_addr	host_ipv6_addr;
+struct s_ipv4_addr	host_ipv4_addr;
 
 int process(char *packet);
 
@@ -114,6 +118,12 @@ int main(int argc, char **argv)
 
 	/* compute binary IPv4 address of WrapSix */
 	inet_pton(AF_INET, IPV4_ADDR, &wrapsix_ipv4_addr);
+
+	/* compute binary IPv6 address of WrapSix host */
+	inet_pton(AF_INET6, HOST_IPV6_ADDR, &host_ipv6_addr);
+
+	/* compute binary IPv4 address of WrapSix host */
+	inet_pton(AF_INET, HOST_IPV4_ADDR, &host_ipv4_addr);
 
 	/* initiate sending socket */
 	if (transmission_init()) {

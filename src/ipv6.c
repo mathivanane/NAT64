@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -48,6 +48,20 @@ int ipv6(struct s_ethernet *eth, char *packet)
 	if (memcmp(&wrapsix_ipv6_prefix, &ip->ip_dest, 12) != 0 &&
 	    memcmp(&ndp_multicast_addr,  &ip->ip_dest, 13) != 0) {
 		return 1;
+	}
+
+	/* check and decrease hop limit */
+	if (ip->hop_limit <= 1) {
+		/* deny this error for error ICMP messages */
+		if (ip->next_header != IPPROTO_ICMPV6 || payload[0] & 0x80) {
+			/* code 0 = hl exceeded in transmit */
+			icmp6_error(eth->src, ip->ip_src, ICMPV6_TIME_EXCEEDED,
+				    0, (unsigned char *) packet,
+				    htons(ip->len) + sizeof(struct s_ipv6));
+		}
+		return 1;
+	} else {
+		ip->hop_limit--;
 	}
 
 	switch (ip->next_header) {

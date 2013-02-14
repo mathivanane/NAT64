@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -54,6 +54,21 @@ int ipv4(struct s_ethernet *eth, char *packet)
 	header_size = (ip->ver_hdrlen & 0x0f) * 4;	/* # of 4 byte words */
 	data_size = htons(ip->len) - header_size;
 	payload = packet + header_size;
+
+	/* check and decrease TTL */
+	if (ip->ttl <= 1) {
+		/* deny this error for ICMP (except ping/pong)
+		 * and for non-first fragments */
+		if ((ip->proto != IPPROTO_ICMP || payload[0] & 0x0 ||
+		    payload[0] & 0x08) && !(ip->flags_offset & htons(0x1fff))) {
+			/* code 0 = ttl exceeded in transmit */
+			icmp4_error(ip->ip_src, ICMPV4_TIME_EXCEEDED, 0,
+				    (unsigned char *) packet, htons(ip->len));
+		}
+		return 1;
+	} else {
+		ip->ttl--;
+	}
 
 	switch (ip->proto) {
 		case IPPROTO_TCP:

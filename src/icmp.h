@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 /* ICMP types */
 #define ICMPV4_ECHO_REPLY	0x0
 #define ICMPV4_ECHO_REQUEST	0x8
+#define ICMPV4_TIME_EXCEEDED	0xb
 
 /* ICMPv6 types */
 #define ICMPV6_DST_UNREACHABLE	0x1
@@ -79,5 +80,11 @@ int icmp_ipv4(struct s_ethernet *eth, struct s_ipv4 *ip4, char *payload,
 int icmp_ipv6(struct s_ethernet *eth, struct s_ipv6 *ip6, char *payload);
 int icmp_ndp(struct s_ethernet *ethq, struct s_ipv6 *ipq,
 	     struct s_icmp_ndp_ns *ndp_ns);
+
+int icmp4_error(struct s_ipv4_addr ip_dest, unsigned char type,
+		unsigned char code, unsigned char *data, unsigned short length);
+int icmp6_error(struct s_mac_addr mac_dest, struct s_ipv6_addr ip_dest,
+		unsigned char type, unsigned char code, unsigned char *data,
+		unsigned short length);
 
 #endif /* ICMP_H */
