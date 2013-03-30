@@ -56,6 +56,7 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 	struct s_icmp	*icmp;
 	unsigned int	*icmp_extra;
 	unsigned short	*icmp_extra_s;
+	unsigned char	*icmp_extra_c;
 	unsigned char	*icmp_data;
 	struct s_nat	*connection;
 	unsigned short	 orig_checksum;
@@ -216,6 +217,84 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 				/* silently drop */
 				return 0;
 			}
+
+		case ICMPV4_TIME_EXCEEDED:
+			if (sub_icmp4_error(icmp_data + 4,
+			    payload_size - sizeof(struct s_icmp) - 4,
+			    &packet[0], &new_len, &icmp, &connection)) {
+				/* something went wrong */
+				return 1;
+			}
+
+			icmp->type = ICMPV6_TIME_EXCEEDED;
+
+			/* new packet is almost finished, yay! */
+
+			break;
+
+		case ICMPV4_PARAM_PROBLEM:
+			if (icmp->code == 0 || icmp->code == 2) {
+				/* update the extra field */
+				icmp_extra = (unsigned int *)
+					     (((unsigned char *) icmp) +
+					      sizeof(struct s_icmp));
+				icmp_extra_c = (unsigned char *) icmp_extra;
+				switch ((int) icmp_extra_c) {
+					case 0:
+					case 1:
+						break;
+
+					case 2:
+					case 3:
+						*icmp_extra = htonl(4);
+						break;
+
+					case 8:
+						*icmp_extra = htonl(7);
+						break;
+
+					case 9:
+						*icmp_extra = htonl(6);
+						break;
+
+					case 12:
+					case 13:
+					case 14:
+					case 15:
+						*icmp_extra = htonl(8);
+						break;
+
+					case 16:
+					case 17:
+					case 18:
+					case 19:
+						*icmp_extra = htonl(24);
+						break;
+
+					default:
+						/* silently drop */
+						return 0;
+				}
+
+				/* update type&code */
+				icmp->type = ICMPV6_PARAM_PROBLEM;
+				icmp->code = 0;
+
+				/* translate body of the packet */
+				if (sub_icmp4_error(icmp_data + 4,
+				    payload_size - sizeof(struct s_icmp) - 4,
+				    &packet[0], &new_len, &icmp, &connection)) {
+					/* something went wrong */
+					return 1;
+				}
+
+				/* new packet is almost finished, yay! */
+			} else {
+				/* silently drop */
+				return 0;
+			}
+
+			break;
 
 		default:
 			/* silently drop */
