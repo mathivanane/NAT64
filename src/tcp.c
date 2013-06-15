@@ -67,7 +67,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 	if ((ip4->flags_offset | htons(IPV4_FLAG_DONT_FRAGMENT)) ==
 	    htons(IPV4_FLAG_DONT_FRAGMENT) ||
 	    ((ip4->flags_offset & htons(IPV4_FLAG_MORE_FRAGMENTS)) &&
-	     (ip4->flags_offset & 0xff1f) == 0x0000 &&
+	     (ip4->flags_offset & htons(0x1fff)) == 0x0000 &&
 	     payload_size >= sizeof(struct s_tcp))) {
 		/* parse TCP header */
 		tcp = (struct s_tcp *) payload;
@@ -398,7 +398,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 					 sizeof(struct s_ipv6_fragment) -
 					 FRAGMENT_LEN);
 			frag->offset_flag = htons(((htons(ip4->flags_offset) &
-						  0xfffc) +
+						  0x1fff) +
 						  FRAGMENT_LEN / 8) << 3);
 			if (ip4->flags_offset &
 			    htons(IPV4_FLAG_MORE_FRAGMENTS)) {
