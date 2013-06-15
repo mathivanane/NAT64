@@ -17,7 +17,9 @@
  */
 
 #include <arpa/inet.h>		/* inet_pton */
+#include <linux/ethtool.h>	/* struct ethtool_value */
 #include <linux/if_ether.h>	/* ETH_P_ALL */
+#include <linux/sockios.h>	/* SIOCETHTOOL */
 #include <net/ethernet.h>	/* ETHERTYPE_* */
 #include <net/if.h>		/* struct ifreq */
 #include <netinet/in.h>		/* htons */
@@ -38,7 +40,7 @@
 #include "wrapper.h"
 
 /* +++ CONFIGURATION +++ */
-#define INTERFACE	"eth0"	/* be sure to turn off generic-segmentation-offload! */
+#define INTERFACE	"eth0"
 #define PREFIX		"64:ff9b::"
 #define IPV4_ADDR	"192.168.0.111"
 #define HOST_IPV6_ADDR	"fd77::1:0:1"
@@ -59,6 +61,7 @@ int process(char *packet);
 int main(int argc, char **argv)
 {
 	struct packet_mreq	pmr;
+	struct ethtool_value	ethtool;
 
 	int	sniff_sock;
 	int	length;
@@ -88,7 +91,18 @@ int main(int argc, char **argv)
 		memcpy(&mac, &interface.ifr_hwaddr.sa_data,
 		       sizeof(struct s_mac_addr));
 
+		/* disable generic segmentation offload */
+		ethtool.cmd = ETHTOOL_SGSO;
+		ethtool.data = 0;
+		interface.ifr_data = (caddr_t) &ethtool;
+		if (ioctl(sniff_sock, SIOCETHTOOL, &interface) == -1) {
+			log_error("Unable to disable generic segmentation "
+				  "offload on the interface");
+			return 1;
+		}
+
 		/* reinitialize the interface */
+		interface.ifr_data = NULL;
 		if (ioctl(sniff_sock, SIOCGIFINDEX, &interface) == -1) {
 			log_error("Unable to reinitialize the interface");
 			return 1;
