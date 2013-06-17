@@ -1,0 +1,8 @@
+WrapSix 0.2.0
+=============
+
+- completely rewritten from scratch, but without DNS64 for now
+- dropped all external dependencies
+- cleaner design & implementation with emphasis on CPU & memory efficiency
+- using standard autotools as a build system
+- changed licence to GNU GPLv3
