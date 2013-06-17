@@ -3,14 +3,35 @@ WrapSix
 
 About
 -----
-WrapSix is NAT64 and DNS64 implementation. It's available in open-source and
-commercial version.
+WrapSix is a fast NAT64 implementation. You also need a DNS64 server (e.g. BIND).
 
-Status
-------
-WrapSix is under development. Branch 0.2 is working right now, but keep in mind
-that it's not yet ready for production and many things may not work. If you test
-it, please report to me any bugs you find.
+Before compiling, don't forget to configure Wrapsix in files src/wrapper.c and
+src/wrapper.h.
+
+Configuration
+-------------
+INTERFACE	Interface on which WrapSix should operate, e.g. eth0.
+PREFIX		NAT64 prefix; at least /96, the default is standard
+		64:ff9b::/96. Input it without the information about prefix
+		length, i.e. just 64:ff9b::.
+IPV4_ADDR	IPv4 address which is dedicated for WrapSix and is not assigned
+		to the host operating system.
+HOST_IPV6_ADDR	IPv6 address which represents the host, i.e. which is assigned
+		to the operating system. It's used in ICMP error messages.
+HOST_IPV4_ADDR	IPv4 address which represents the host, i.e. which is assigned
+		to the operating system. It's used in ICMP error messages.
+MTU		Minimum MTU in your IPv6 network; default is 1280, but you can
+		set it to a greater value (up to 1500).
+PACKET_BUFFER	Size of a buffer for incoming packets; it's strongly recommended
+		to leave its value as is (i.e. 1514).
+
+Installation
+------------
+For installation use standard ./configure && make && make install commands.
+
+Running
+-------
+It can be run by `wrapsix` command as root.
 
 Contact
 -------
