@@ -14,6 +14,7 @@ AC_CONFIG_FILES([
 	src/Makefile
 ])
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_HEADER([src/autoconfig.h.in])
 
 ###
 # Configuration options
@@ -26,10 +27,13 @@ AC_ARG_ENABLE([debug],
 
 if test "x$debug" = "xyes"; then
 	AS_COMPILER_FLAGS(AM_CFLAGS, "-g -ggdb -O0 -pipe -pedantic -Wshadow -Wall -Wextra -Wno-missing-field-initializers -Wno-unused-parameter -Wold-style-definition -Wdeclaration-after-statement -Wmissing-declarations -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls -Wmissing-noreturn -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Winline -Wformat-nonliteral -Wformat-security -Wswitch-enum -Winit-self -Wmissing-include-dirs -Wundef -Waggregate-return -Wnested-externs -Wunsafe-loop-optimizations -Winvalid-pch")
-	AC_DEFINE([DEBUG])
+	AC_DEFINE([DEBUG], [], [Turn on debug mode])
 else
         AS_COMPILER_FLAGS(AM_CFLAGS, "-O2")
 fi
+
+
+AC_DEFINE([SYSCONFDIR], "--sysconfdir--", [Configuration files directory])
 
 ###
 # Final commands

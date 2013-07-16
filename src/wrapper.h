@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2012  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  xHire <xhire@wrapsix.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,11 +22,12 @@
 #include "ipv4.h"
 #include "ipv6.h"
 
-/* +++ CONFIGURE +++ */
-#define MTU		1280	/* MTU on IPv6 side */
+/* +++ INTERNAL CONFIGURATION +++ */
+#define MAX_MTU		1500	/* maximum MTU on IPv6 side */
 #define PACKET_BUFFER	1514	/* buffer for any packet */
-/* --- CONFIGURE --- */
+/* --- INTERNAL CONFIGURATION --- */
 
+extern unsigned short		mtu;
 extern struct ifreq		interface;
 extern struct s_mac_addr	mac;
 extern struct s_ipv6_addr	ndp_multicast_addr;

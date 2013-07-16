@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  xHire <xhire@wrapsix.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,10 @@
 #include <unistd.h>		/* close */
 
 #include "arp.h"
+#ifdef HAVE_CONFIG_H
+#include "autoconfig.h"
+#endif /* HAVE_CONFIG_H */
+#include "config.h"
 #include "ethernet.h"
 #include "ipv4.h"
 #include "ipv6.h"
@@ -40,13 +44,11 @@
 #include "wrapper.h"
 
 /* +++ CONFIGURATION +++ */
-#define INTERFACE	"eth0"
-#define PREFIX		"64:ff9b::"
-#define IPV4_ADDR	"192.168.0.111"
 #define HOST_IPV6_ADDR	"fd77::1:0:1"
 #define HOST_IPV4_ADDR	"192.168.0.19"
 /* --- CONFIGURATION --- */
 
+unsigned short mtu;
 
 struct ifreq		interface;
 struct s_mac_addr	mac;
@@ -60,6 +62,8 @@ int process(char *packet);
 
 int main(int argc, char **argv)
 {
+	struct s_cfg_opts	cfg;
+
 	struct packet_mreq	pmr;
 	struct ethtool_value	ethtool;
 
@@ -72,6 +76,18 @@ int main(int argc, char **argv)
 
 	log_info(PACKAGE_STRING " is starting");
 
+	/* load configuration */
+	if (argc == 1) {
+		cfg_parse(SYSCONFDIR "/wrapsix.conf", &mtu, &cfg, 1);
+	} else {
+		cfg_parse(argv[1], &mtu, &cfg, 1);
+	}
+
+	log_info("Using: interface %s", cfg.interface);
+	log_info("       prefix %s", cfg.prefix);
+	log_info("       MTU %d", mtu);
+	log_info("       IPv4 address %s", cfg.ipv4_address);
+
 	/* initialize the socket for sniffing */
 	if ((sniff_sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) ==
 	    -1) {
@@ -80,9 +96,9 @@ int main(int argc, char **argv)
 	}
 
 	/* get the interface */
-	strncpy(interface.ifr_name, INTERFACE, IFNAMSIZ);
+	strncpy(interface.ifr_name, cfg.interface, IFNAMSIZ);
 	if (ioctl(sniff_sock, SIOCGIFINDEX, &interface) == -1) {
-		log_error("Unable to get the interface");
+		log_error("Unable to get the interface %s", cfg.interface);
 		return 1;
 	}
 
@@ -128,10 +144,10 @@ int main(int argc, char **argv)
 	inet_pton(AF_INET6, "ff02::1:ff00:0", &ndp_multicast_addr);
 
 	/* compute binary IPv6 address of WrapSix prefix */
-	inet_pton(AF_INET6, PREFIX, &wrapsix_ipv6_prefix);
+	inet_pton(AF_INET6, cfg.prefix, &wrapsix_ipv6_prefix);
 
 	/* compute binary IPv4 address of WrapSix */
-	inet_pton(AF_INET, IPV4_ADDR, &wrapsix_ipv4_addr);
+	inet_pton(AF_INET, cfg.ipv4_address, &wrapsix_ipv4_addr);
 
 	/* compute binary IPv6 address of WrapSix host */
 	inet_pton(AF_INET6, HOST_IPV6_ADDR, &host_ipv6_addr);

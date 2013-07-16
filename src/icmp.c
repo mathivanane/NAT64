@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  xHire <xhire@wrapsix.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 	unsigned char	*icmp_data;
 	struct s_nat	*connection;
 	unsigned short	 orig_checksum;
-	unsigned char	 packet[MTU + sizeof(struct s_ethernet)];
+	unsigned char	 packet[PACKET_BUFFER];
 	unsigned short	 new_len = sizeof(struct s_ethernet) +
 				   sizeof(struct s_ipv6);
 
@@ -119,15 +119,15 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 			icmp->type = ICMPV6_ECHO_REPLY;
 
 			/* copy the payload data */
-			if (payload_size < MTU - sizeof(struct s_ipv6)) {
+			if (payload_size < mtu - sizeof(struct s_ipv6)) {
 				memcpy(&packet[new_len], payload, payload_size);
 				icmp = (struct s_icmp *) &packet[new_len];
 				new_len += payload_size;
 			} else {
-				memcpy(&packet[new_len], payload, MTU -
+				memcpy(&packet[new_len], payload, mtu -
 				       sizeof(struct s_ipv6));
 				icmp = (struct s_icmp *) &packet[new_len];
-				new_len += MTU - sizeof(struct s_ipv6);
+				new_len += mtu - sizeof(struct s_ipv6);
 			}
 
 			break;
@@ -174,9 +174,9 @@ int icmp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4,
 					if (ntohs(*icmp_extra_s) < 68) {
 						*icmp_extra = htonl(
 							*icmp_extra_s + 20 <
-							MTU ? (unsigned int)
+							mtu ? (unsigned int)
 							*icmp_extra_s + 20 :
-							MTU);
+							(unsigned int) mtu);
 					} else {
 						/* RFC1191 */
 						/* NOTE: >= would cause infinite
@@ -1063,10 +1063,10 @@ int sub_icmp4_error(unsigned char *payload, unsigned short payload_size,
 	/* copy payload, aligned to MTU */
 	/* we can afford to use full MTU instead of just 1280 B as admin
 	 * warrants this to us */
-	if (payload_size > MTU + sizeof(struct s_ethernet) - *packet_len) {
+	if (payload_size > mtu + sizeof(struct s_ethernet) - *packet_len) {
 		memcpy(&packet[*packet_len], payload,
-		       MTU + sizeof(struct s_ethernet) - *packet_len);
-		*packet_len = MTU;
+		       mtu + sizeof(struct s_ethernet) - *packet_len);
+		*packet_len = mtu;
 	} else {
 		memcpy(&packet[*packet_len], payload, payload_size);
 		*packet_len += payload_size;

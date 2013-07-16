@@ -1,6 +1,6 @@
 /*
  *  WrapSix
- *  Copyright (C) 2008-2013  Michal Zima <xhire@mujmalysvet.cz>
+ *  Copyright (C) 2008-2013  xHire <xhire@wrapsix.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -199,8 +199,8 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 
 		/* allocate enough memory for translated packet */
 		if ((packet = (unsigned char *) malloc(
-		    payload_size > MTU - sizeof(struct s_ipv6) ?
-		    MTU + sizeof(struct s_ethernet) :
+		    payload_size > mtu - sizeof(struct s_ipv6) ?
+		    mtu + sizeof(struct s_ethernet) :
 		    sizeof(struct s_ethernet) + sizeof(struct s_ipv6) +
 		    payload_size)) == NULL) {
 			log_error("Lack of free memory");
@@ -233,9 +233,9 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 						     connection->ipv6_port_src);
 
 		/* fragment it or not? */
-		if (payload_size > MTU - sizeof(struct s_ipv6)) {
+		if (payload_size > mtu - sizeof(struct s_ipv6)) {
 			/* 1st fragments' payload size must be 8-byte aligned */
-			#define FRAGMENT_LEN (((MTU - sizeof(struct s_ipv6) - \
+			#define FRAGMENT_LEN (((mtu - sizeof(struct s_ipv6) - \
 				sizeof(struct s_ipv6_fragment)) / 8) * 8)
 
 			/* fill in missing IPv6 header fields */
@@ -341,9 +341,9 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 
 		/* allocate enough memory for translated packet */
 		if ((packet = (unsigned char *) malloc(
-		    payload_size > MTU - sizeof(struct s_ipv6) -
+		    payload_size > mtu - sizeof(struct s_ipv6) -
 		    sizeof(struct s_ipv6_fragment) ?
-		    MTU + sizeof(struct s_ethernet) :
+		    mtu + sizeof(struct s_ethernet) :
 		    sizeof(struct s_ethernet) + sizeof(struct s_ipv6) +
 		    sizeof(struct s_ipv6_fragment) + payload_size)) == NULL) {
 			log_error("Lack of free memory");
@@ -374,7 +374,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 		frag->id		= htonl(htons(ip4->id));
 
 		/* fragment the fragment or not? */
-		if (payload_size > MTU - sizeof(struct s_ipv6) -
+		if (payload_size > mtu - sizeof(struct s_ipv6) -
 		    sizeof(struct s_ipv6_fragment)) {
 			/* fill in missing IPv6 header fields */
 			ip6->len = htons(FRAGMENT_LEN +
@@ -391,7 +391,7 @@ int tcp_ipv4(struct s_ethernet *eth4, struct s_ipv4 *ip4, char *payload,
 			       payload, FRAGMENT_LEN);
 
 			/* send translated packet */
-			transmit_raw(packet, sizeof(struct s_ethernet) + MTU);
+			transmit_raw(packet, sizeof(struct s_ethernet) + mtu);
 
 			/* create the second fragment */
 			ip6->len = htons(payload_size +
