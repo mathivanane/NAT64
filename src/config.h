@@ -19,6 +19,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "ipv4.h"
+#include "ipv6.h"
+
 struct s_cfg_opts {
 	char interface[128];
 	char prefix[128];
@@ -27,5 +30,7 @@ struct s_cfg_opts {
 
 int cfg_parse(const char *config_file, unsigned short *cmtu,
 	      struct s_cfg_opts *oto, unsigned char init);
+int cfg_host_ips(char *cinterface, struct s_ipv6_addr *ipv6_addr,
+		 struct s_ipv4_addr *ipv4_addr, char *default_ipv4_addr);
 
 #endif /* CONFIG_H */

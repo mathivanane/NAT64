@@ -16,11 +16,16 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <arpa/inet.h>	/* inet_pton */
+#include <ifaddrs.h>	/* struct ifaddrs, getifaddrs, freeifaddrs */
+#include <netdb.h>	/* getnameinfo, NI_NUMERICHOST */
+#include <stdio.h>	/* FILE, fopen, getc, feof, fclose, perror */
+#include <stdlib.h>	/* exit */
+#include <string.h>	/* strcmp, strncpy */
 
 #include "config.h"
+#include "ipv4.h"
+#include "ipv6.h"
 #include "log.h"
 #include "wrapper.h"
 
@@ -36,8 +41,9 @@
 		}
 
 #define	C_DEFAULT_MTU		1280
-#define	C_DEFAULT_INTERFACE	"eth0"
 #define	C_DEFAULT_PREFIX	"64:ff9b::"
+
+void cfg_guess_interface(char *cinterface);
 
 /**
  * Configuration file parser.
@@ -48,6 +54,12 @@
  * 				locally to init other things)
  * @param	init		0 or 1, whether or not to initialize
  * 				configuration with defaults
+ *
+ * @return      0 for success
+ * @return      1 for failure in case of some syntax error when reloading
+ * 		configuration
+ * @return	exit with code 1 in case of some syntax error when initializing
+ * 		configuration
  */
 int cfg_parse(const char *config_file, unsigned short *cmtu,
 	      struct s_cfg_opts *oto, unsigned char init)
@@ -61,15 +73,14 @@ int cfg_parse(const char *config_file, unsigned short *cmtu,
 
 	/* set defaults */
 	*cmtu = C_DEFAULT_MTU;
-	/* TODO: get automatically the first available interface */
-	strncpy(oto->interface, C_DEFAULT_INTERFACE, sizeof(oto->interface));
+	oto->interface[0] = '\0';
+	cfg_guess_interface(oto->interface);
 	strncpy(oto->prefix, C_DEFAULT_PREFIX, sizeof(oto->prefix));
 	oto->ipv4_address[0] = '\0';
 
 	f = fopen(config_file, "r");
 
 	if (f == NULL) {
-		/* set defaults */
 		log_warn("Configuration file %s doesn't exist, using defaults",
 			 config_file);
 
@@ -180,4 +191,137 @@ int cfg_parse(const char *config_file, unsigned short *cmtu,
 	}
 
 	return 0;
+}
+
+/**
+ * Configures host IP addresses for usage in ICMP error messages. If some or
+ * both is not available, defaults are used.
+ *
+ * As a default in case of IPv4 is used IPv4 address assigned to WrapSix in
+ * configuration, in case of IPv6 is used made up address from default NAT64
+ * prefix -- WrapSix itself cannot act as a host so it doesn't matter.
+ *
+ * @param	cinterface		Name of the interface WrapSix sits on
+ * @param	ipv6_addr		Where to save host IPv6 address
+ * @param	ipv4_addr		Where to save host IPv4 address
+ * @param	default_ipv4_addr	IPv4 address assigned to WrapSix
+ *
+ * @return      0 for success
+ * @return      1 for failure
+ */
+int cfg_host_ips(char *cinterface, struct s_ipv6_addr *ipv6_addr,
+		 struct s_ipv4_addr *ipv4_addr, char *default_ipv4_addr)
+{
+	struct ifaddrs *ifaddr, *ifa;
+	/* 0x01 IPv6 from WrapSix' interface
+	 * 0x02 IPv4 from WrapSix' interface
+	 * 0x04 IPv6 from another interface
+	 * 0x08 IPv4 from another interface
+	 */
+	char found = 0;
+	char ip_text[40];
+
+	if (getifaddrs(&ifaddr) == -1) {
+		perror("getifaddrs");
+		return 1;
+	}
+
+	/* Walk through linked list, maintaining head pointer so we can free
+	 * list later */
+
+	/* first try to get addresses from the interface */
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr == NULL) {
+			continue;
+		}
+
+		if (!strcmp(ifa->ifa_name, cinterface)) {
+			if (ifa->ifa_addr->sa_family == AF_INET6 &&
+			    !(found & 0x01)) {
+				found |= 0x01;
+				getnameinfo(ifa->ifa_addr,
+					    sizeof(struct sockaddr_in6),
+					    ip_text, sizeof(ip_text), NULL, 0,
+					    NI_NUMERICHOST);
+				inet_pton(AF_INET6, ip_text, ipv6_addr);
+			} else if (ifa->ifa_addr->sa_family == AF_INET &&
+				   !(found & 0x02)) {
+				found |= 0x02;
+				getnameinfo(ifa->ifa_addr,
+					    sizeof(struct sockaddr_in),
+					    ip_text, sizeof(ip_text), NULL, 0,
+					    NI_NUMERICHOST);
+				inet_pton(AF_INET, ip_text, ipv4_addr);
+			}
+		} else {	/* look for addresses on other interfaces too */
+			if (ifa->ifa_addr->sa_family == AF_INET6 &&
+			    !(found & 0x05)) {
+				found |= 0x04;
+				getnameinfo(ifa->ifa_addr,
+					    sizeof(struct sockaddr_in6),
+					    ip_text, sizeof(ip_text), NULL, 0,
+					    NI_NUMERICHOST);
+				inet_pton(AF_INET6, ip_text, ipv6_addr);
+			} else if (ifa->ifa_addr->sa_family == AF_INET &&
+				   !(found & 0x0a)) {
+				found |= 0x08;
+				getnameinfo(ifa->ifa_addr,
+					    sizeof(struct sockaddr_in),
+					    ip_text, sizeof(ip_text), NULL, 0,
+					    NI_NUMERICHOST);
+				inet_pton(AF_INET, ip_text, ipv4_addr);
+			}
+		}
+
+		if ((found & 0x03) == 0x03) {
+			break;
+		}
+	}
+
+	/* no IPv4 address -> use default */
+	if (!(found & 0x0a)) {
+		inet_pton(AF_INET, default_ipv4_addr, ipv4_addr);
+	}
+
+	/* IPv6 default? huh... but we can't work without host IPv6 address */
+	if (!(found & 0x05)) {
+		/* FUN: try to decode it ;c) */
+		inet_pton(AF_INET6, "64:ff9b::E7ad:514", ipv6_addr);
+	}
+
+	freeifaddrs(ifaddr);
+
+	return 0;
+}
+
+/**
+ * Gets name of first non-loopback network interface.
+ *
+ * @param	cinterface	Where to save the interface name
+ */
+void cfg_guess_interface(char *cinterface)
+{
+	struct ifaddrs *ifaddr, *ifa;
+
+	if (getifaddrs(&ifaddr) == -1) {
+		perror("getifaddrs");
+		return;
+	}
+
+	/* Walk through linked list, maintaining head pointer so we can free
+	 * list later */
+
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr == NULL) {
+			continue;
+		}
+
+		/* skip loopback */
+		if (strcmp(ifa->ifa_name, "lo")) {
+			strncpy(cinterface, ifa->ifa_name, sizeof(cinterface));
+			break;
+		}
+	}
+
+	freeifaddrs(ifaddr);
 }
